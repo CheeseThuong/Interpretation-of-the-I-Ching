@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" width="400" height="260">
+  <rect width="400" height="260" fill="#1a1205"/>
+  <rect x="60" y="50" width="280" height="160" rx="12" fill="none" stroke="#b66b00" stroke-width="1.5" opacity=".4"/>
+  <rect x="80" y="70" width="100" height="12" rx="6" fill="#b66b00" opacity=".5"/>
+  <rect x="80" y="90" width="140" height="8" rx="4" fill="#b66b00" opacity=".3"/>
+  <rect x="80" y="106" width="120" height="8" rx="4" fill="#b66b00" opacity=".25"/>
+  <rect x="80" y="130" width="100" height="12" rx="6" fill="#f6d48b" opacity=".4"/>
+  <rect x="80" y="150" width="160" height="8" rx="4" fill="#b66b00" opacity=".3"/>
+  <rect x="80" y="166" width="130" height="8" rx="4" fill="#b66b00" opacity=".25"/>
+  <text x="310" y="120" text-anchor="middle" font-size="40" font-family="serif" fill="#f6d48b" opacity=".7">🧠</text>
+  <text x="200" y="240" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#b66b00" letter-spacing="1.5">KNOWLEDGE BASE</text>
+</svg>

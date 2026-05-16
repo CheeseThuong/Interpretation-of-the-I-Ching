@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" width="400" height="260">
+  <rect width="400" height="260" fill="#1a1205"/>
+  <circle cx="200" cy="90" r="60" fill="none" stroke="#b66b00" stroke-width="2" opacity=".4"/>
+  <text x="200" y="105" text-anchor="middle" font-size="64" font-family="serif" fill="#f6d48b">易</text>
+  <g transform="translate(130,170)" fill="#b66b00" opacity=".85">
+    <rect x="0" y="0" width="50" height="8" rx="4"/>
+    <rect x="0" y="16" width="20" height="8" rx="4"/>
+    <rect x="30" y="16" width="20" height="8" rx="4"/>
+    <rect x="0" y="32" width="50" height="8" rx="4"/>
+    <rect x="0" y="48" width="20" height="8" rx="4"/>
+    <rect x="30" y="48" width="20" height="8" rx="4"/>
+  </g>
+  <g transform="translate(220,170)" fill="#b66b00" opacity=".6">
+    <rect x="0" y="0" width="50" height="8" rx="4"/>
+    <rect x="0" y="16" width="50" height="8" rx="4"/>
+    <rect x="0" y="32" width="20" height="8" rx="4"/>
+    <rect x="30" y="32" width="20" height="8" rx="4"/>
+    <rect x="0" y="48" width="50" height="8" rx="4"/>
+    <rect x="0" y="64" width="50" height="8" rx="4"/>
+  </g>
+  <text x="200" y="248" text-anchor="middle" font-size="13" font-family="sans-serif" fill="#b66b00" letter-spacing="2">AI ORACLE READING</text>
+</svg>

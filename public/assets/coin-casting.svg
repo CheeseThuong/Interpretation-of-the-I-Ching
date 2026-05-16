@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 260" width="400" height="260">
+  <rect width="400" height="260" fill="#1a1205"/>
+  <circle cx="140" cy="120" r="45" fill="none" stroke="#f6d48b" stroke-width="1.5" opacity=".5"/>
+  <circle cx="220" cy="100" r="38" fill="none" stroke="#f6d48b" stroke-width="1.5" opacity=".4"/>
+  <circle cx="280" cy="130" r="42" fill="none" stroke="#f6d48b" stroke-width="1.5" opacity=".35"/>
+  <text x="140" y="127" text-anchor="middle" font-size="28" font-family="serif" fill="#f6d48b">🪙</text>
+  <text x="220" y="107" text-anchor="middle" font-size="28" font-family="serif" fill="#f6d48b">🪙</text>
+  <text x="280" y="137" text-anchor="middle" font-size="28" font-family="serif" fill="#f6d48b">🪙</text>
+  <text x="200" y="210" text-anchor="middle" font-size="12" font-family="sans-serif" fill="#b66b00" letter-spacing="1.5">6 · 7 · 8 · 9 — LỤC HÀO</text>
+  <g transform="translate(160,220)" fill="#b66b00" opacity=".7">
+    <rect x="0" y="0" width="80" height="6" rx="3"/>
+    <rect x="0" y="12" width="32" height="6" rx="3"/>
+    <rect x="48" y="12" width="32" height="6" rx="3"/>
+    <rect x="0" y="24" width="80" height="6" rx="3"/>
+  </g>
+</svg>
