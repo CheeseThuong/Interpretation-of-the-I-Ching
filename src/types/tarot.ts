@@ -15,7 +15,8 @@ export interface TarotCard {
   meaningReversed: string;
 }
 
-export type SpreadType = 'one-card' | 'three-cards' | 'love' | 'yes-no';
+export type SpreadType = 'one-card' | 'three-cards' | 'love' | 'yes-no' | 'daily' | 'five-cards';
+
 
 export interface TarotSpread {
   id: SpreadType;

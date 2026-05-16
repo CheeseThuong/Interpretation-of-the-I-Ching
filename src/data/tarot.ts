@@ -2,6 +2,13 @@ import type { TarotCard, TarotSpread } from '../types/tarot';
 
 export const SPREADS: TarotSpread[] = [
   {
+    id: 'daily',
+    name: 'Lá Bài Hôm Nay',
+    description: 'Rút một lá để nhận thông điệp, năng lượng và điều nên chú ý trong ngày.',
+    cardCount: 1,
+    positions: ['Thông điệp hôm nay']
+  },
+  {
     id: 'one-card',
     name: 'Một Lá Bài (One Card)',
     description: 'Trải bài đơn giản nhất để có câu trả lời trực tiếp hoặc thông điệp cho ngày mới.',
@@ -28,6 +35,19 @@ export const SPREADS: TarotSpread[] = [
     description: 'Trải bài nhanh gọn giúp bạn đưa ra quyết định dứt khoát.',
     cardCount: 1,
     positions: ['Câu trả lời']
+  },
+  {
+    id: 'five-cards',
+    name: 'Trải Bài 5 Lá',
+    description: 'Phân tích sâu tình huống, trở ngại, điều ẩn sau, lời khuyên và xu hướng kết quả.',
+    cardCount: 5,
+    positions: [
+      'Tình huống hiện tại',
+      'Điều đang cản trở',
+      'Điều bị che khuất',
+      'Lời khuyên',
+      'Xu hướng kết quả'
+    ]
   }
 ];
 

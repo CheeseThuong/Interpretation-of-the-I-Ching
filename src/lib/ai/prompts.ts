@@ -288,6 +288,38 @@ DECISION-SPECIFIC RULES (active because this is a "${preCtx.decisionType}" quest
 `.trim()
     : '';
 
+  // ── Spread-type-specific layers ───────────────────────────────────────────
+  const spreadId = data.spreadType; // spreadType carries the spread name or id
+  const isDailySpread = spreadId.includes('Hôm Nay') || spreadId === 'daily';
+  const isFiveCardSpread = spreadId.includes('5 Lá') || spreadId === 'five-cards';
+
+  const dailySpreadLayer = isDailySpread ? `
+DAILY GUIDANCE RULES (active — Lá Bài Hôm Nay):
+- answerMode: daily_guidance
+- This is a DAILY CARD reading, NOT a decision oracle.
+- directAnswer: một câu thông điệp ngắn gọn cho ngày hôm nay.
+- decisionChecklist should be renamed mentally to "Điều nên chú ý hôm nay" — list 3-5 gentle observations.
+- practicalAdvice: 2-3 hành động nhỏ, tích cực cho ngày hôm nay.
+- thingsToAvoid: 1-2 điều nên tránh trong ngày (năng lượng, thái độ, không phải giao dịch).
+- riskNotes: không cần rủi ro tài chính — thay bằng "điều cần chú ý về cảm xúc hoặc năng lượng".
+- finalMessage: một câu chốt ngắn gọn, truyền cảm hứng cho ngày hôm nay.
+- DO NOT frame this as a major life decision — it is daily reflection.
+- DO NOT mention financial/legal/transaction risks unless user's question specifically involves them.
+`.trim() : '';
+
+  const fiveCardLayer = isFiveCardSpread ? `
+FIVE-CARD DEEP ANALYSIS RULES (active — Trải Bài 5 Lá):
+- Đây là trải bài phân tích sâu gồm 5 vị trí: Tình huống hiện tại | Điều đang cản trở | Điều bị che khuất | Lời khuyên | Xu hướng kết quả
+- symbolDetails.cardInterpretations MUST include ALL 5 cards, each with meaningInThisQuestion specific to its position role.
+- contextualInterpretation: kết nối cả 5 lá thành một mạch truyện liên kết về câu hỏi của người dùng.
+- decisionChecklist: dựa trên nội dung các lá, đưa ra 4-6 điểm cần kiểm tra hoặc hành động.
+- practicalAdvice: 3-4 hành động cụ thể phù hợp với câu hỏi và kết quả đọc bài.
+- thingsToAvoid: rủi ro cụ thể được chỉ ra bởi "Điều đang cản trở" và "Điều bị che khuất".
+- riskNotes: phân tích rủi ro từ xu hướng kết quả nếu tiếp tục theo hướng hiện tại.
+- finalMessage: tổng hợp thông điệp từ cả 5 lá theo chiều hướng tích cực và thực tế.
+`.trim() : '';
+
+
   // Reference section — only injected if the helper found matching rows
   const referenceSection = referenceContext
     ? `
@@ -343,7 +375,7 @@ BỐI CẢNH CÂU HỎI (pre-classification — hãy tự kiểm tra và điều
 - riskLevel: ${preCtx.riskLevel}
 - requiredLens: ${preCtx.requiredLens.length > 0 ? preCtx.requiredLens.join(', ') : 'Không có (general guidance)'}
 ━━━━━━━━━━━━━━━━━━━━━━━━
-${loveSpecificLayer ? '\n' + loveSpecificLayer + '\n' : ''}${decisionSpecificLayer ? '\n' + decisionSpecificLayer + '\n' : ''}${referenceSection ? '\n' + referenceSection + '\n' : ''}
+${loveSpecificLayer ? '\n' + loveSpecificLayer + '\n' : ''}${decisionSpecificLayer ? '\n' + decisionSpecificLayer + '\n' : ''}${dailySpreadLayer ? '\n' + dailySpreadLayer + '\n' : ''}${fiveCardLayer ? '\n' + fiveCardLayer + '\n' : ''}${referenceSection ? '\n' + referenceSection + '\n' : ''}
 YÊU CẦU ĐẦU RA — Chỉ trả về JSON hợp lệ, không có markdown, không có text bên ngoài:
 {
   "directAnswer": "Câu trả lời trực tiếp cho câu hỏi trong 1-3 câu, bằng tiếng Việt.",
