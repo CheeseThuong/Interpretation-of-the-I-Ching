@@ -236,6 +236,7 @@ export function buildTarotReadingPrompt(
     }>;
     timestamp: string;
     userNotes?: string;
+    synthesisContext?: string; // optional local synthesis summary
   },
   referenceContext = ''
 ): string {
@@ -396,7 +397,11 @@ BỐI CẢNH CÂU HỎI (pre-classification — hãy tự kiểm tra và điều
 - riskLevel: ${preCtx.riskLevel}
 - requiredLens: ${preCtx.requiredLens.length > 0 ? preCtx.requiredLens.join(', ') : 'Không có (general guidance)'}
 ━━━━━━━━━━━━━━━━━━━━━━━━
-${loveSpecificLayer ? '\n' + loveSpecificLayer + '\n' : ''}${decisionSpecificLayer ? '\n' + decisionSpecificLayer + '\n' : ''}${dailySpreadLayer ? '\n' + dailySpreadLayer + '\n' : ''}${fiveCardLayer ? '\n' + fiveCardLayer + '\n' : ''}${referenceSection ? '\n' + referenceSection + '\n' : ''}
+${loveSpecificLayer ? '\n' + loveSpecificLayer + '\n' : ''}${decisionSpecificLayer ? '\n' + decisionSpecificLayer + '\n' : ''}${dailySpreadLayer ? '\n' + dailySpreadLayer + '\n' : ''}${fiveCardLayer ? '\n' + fiveCardLayer + '\n' : ''}${data.synthesisContext ? `
+TỔNG HỢP CỤC BỘ (từ hệ thống — dùng làm cầu nối biểu tượng → diễn giải):
+${data.synthesisContext}
+QUY TẮC: Hãy dùng tổng hợp trên như nền tảng. Không được bỏ qua nó. Không lặp lại nghĩa lá bài mà không kết nối vào tổng hợp và câu hỏi của người dùng.
+` : ''}${referenceSection ? '\n' + referenceSection + '\n' : ''}
 YÊU CẦU ĐẦU RA — Chỉ trả về JSON hợp lệ, không có markdown, không có text bên ngoài:
 {
   "directAnswer": "Câu trả lời trực tiếp cho câu hỏi trong 1-3 câu, bằng tiếng Việt.",

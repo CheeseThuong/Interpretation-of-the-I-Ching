@@ -6,6 +6,9 @@ import { mockAITarotReading } from '../../utils/mockAI';
 import type { ReadingTone } from '../../types/ai';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
 import { createFreshTarotDeck, shuffleTarotDeck, drawTarotCards } from '../../utils/tarotDeck';
+import { synthesizeTarotReading } from '../../lib/readings/synthesis';
+import type { TarotSynthesis } from '../../lib/readings/synthesis';
+import { TarotSynthesisDisplay } from '../ui/ReadingSynthesis';
 
 type TarotStep = 'select-spread' | 'shuffle' | 'draw' | 'result';
 
@@ -27,6 +30,9 @@ const TarotSection: React.FC = () => {
   // Animation state
   const [isRevealing, setIsRevealing] = useState(false);
   const [revealedIndices, setRevealedIndices] = useState<number[]>([]);
+
+  // Synthesis state
+  const [synthesis, setSynthesis] = useState<TarotSynthesis | null>(null);
 
   const TONES: ReadingTone[] = [
     'Gentle and healing',
@@ -75,9 +81,18 @@ const TarotSection: React.FC = () => {
             setRevealedIndices(prev => [...prev, idx]);
           }, 800 + (idx * 600));
         });
+        const revealDone = 800 + (selectedSpread.cardCount * 600) + 500;
         setTimeout(() => {
           setIsRevealing(false);
-        }, 800 + (selectedSpread.cardCount * 600) + 500);
+          // Compute synthesis after all cards are revealed
+          const syn = synthesizeTarotReading({
+            question,
+            spreadId:   selectedSpread.id,
+            spreadName: selectedSpread.name,
+            drawnCards: allDrawn,
+          });
+          setSynthesis(syn);
+        }, revealDone);
       }, 1000);
       return;
     }
@@ -102,7 +117,10 @@ const TarotSection: React.FC = () => {
         meaningUpright: dc.card.meaningUpright,
         meaningReversed: dc.card.meaningReversed
       })),
-      timestamp: new Date().toLocaleString('vi-VN')
+      timestamp: new Date().toLocaleString('vi-VN'),
+      synthesisContext: synthesis
+        ? `Tổng quan: ${synthesis.overview}\nMối liên hệ: ${synthesis.patternSummary}\nTín hiệu: ${synthesis.mainSignal}\nĐiểm nổi bật: ${synthesis.keyTension}\nLời khuyên tổng hợp: ${synthesis.keyAdvice}\nTóm tắt: ${synthesis.oneLineSummary}`
+        : undefined
     };
 
     try {
@@ -138,6 +156,7 @@ const TarotSection: React.FC = () => {
     setIsRevealing(false);
     setAiState('idle');
     setAiResponse(null);
+    setSynthesis(null);
   };
 
   return (
@@ -318,6 +337,13 @@ const TarotSection: React.FC = () => {
                   </div>
                 ))}
               </div>
+
+              {/* ── Synthesis layer (shown after reveal completes) ── */}
+              {synthesis && !isRevealing && (
+                <div style={{ marginBottom: '10px' }}>
+                  <TarotSynthesisDisplay synthesis={synthesis} />
+                </div>
+              )}
 
               <div id="ai-tarot-reading" style={{ marginTop: '40px', padding: '30px', background: 'rgba(112, 66, 163, 0.05)', borderRadius: '16px', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
                 {aiState === 'idle' && (

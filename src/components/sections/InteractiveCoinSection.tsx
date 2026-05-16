@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import HexagramDisplay from '../ui/HexagramDisplay';
 import CoinFlip from '../ui/CoinFlip';
 import { computeManualHexagramState } from '../../utils/hexagram';
@@ -7,6 +7,9 @@ import type { AIReadingResponse } from '../../utils/mockAI';
 import type { ReadingTone } from '../../types/ai';
 import type { ManualHexagramState, CastingMetadata } from '../../types';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
+import { synthesizeKinhDichReading } from '../../lib/readings/synthesis';
+import type { KinhDichSynthesis } from '../../lib/readings/synthesis';
+import { KinhDichSynthesisDisplay } from '../ui/ReadingSynthesis';
 
 type Step = 'intro' | 'casting' | 'result';
 
@@ -55,6 +58,23 @@ const InteractiveCoinSection: React.FC = () => {
   const [aiState, setAiState] = useState<'idle' | 'loading' | 'done'>('idle');
   const [aiTone, setAiTone] = useState<ReadingTone>('Mystical and poetic');
   const [aiResponse, setAiResponse] = useState<AIReadingResponse | null>(null);
+
+  // Synthesis state
+  const [synthesis, setSynthesis] = useState<KinhDichSynthesis | null>(null);
+
+  // Compute synthesis whenever a new hexagram result is available
+  useEffect(() => {
+    if (!hexagramState || !metadata) return;
+    const syn = synthesizeKinhDichReading({
+      question:        metadata.question,
+      topic:           metadata.topic,
+      primaryHexagram: hexagramState.primaryInfo.name,
+      changedHexagram: hexagramState.changedInfo.name,
+      movingLines:     hexagramState.movingLines.length > 0 ? hexagramState.movingLines.join(', ') : 'Không có',
+      sixLines:        hexagramState.primaryLines.join(', '),
+    });
+    setSynthesis(syn);
+  }, [hexagramState, metadata]);
 
   const handleStartCasting = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,6 +144,7 @@ const InteractiveCoinSection: React.FC = () => {
 
     setMetadata(null);
     setHexagramState(null);
+    setSynthesis(null);
     setCurrentFaces([3, 3, 3]);
     setAiState('idle');
     setAiResponse(null);
@@ -367,6 +388,13 @@ const InteractiveCoinSection: React.FC = () => {
                     )}
                   </div>
                 </div>
+
+                {/* ── Synthesis layer ── */}
+                {synthesis && (
+                  <div style={{ marginTop: '30px' }}>
+                    <KinhDichSynthesisDisplay synthesis={synthesis} />
+                  </div>
+                )}
 
                 {/* AI Reading Section Integration */}
                 <div style={{ marginTop: '40px', padding: '30px', background: 'rgba(112, 66, 163, 0.05)', borderRadius: '16px', border: '1px solid var(--glass-border)' }}>
