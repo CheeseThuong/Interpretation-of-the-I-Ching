@@ -8,10 +8,11 @@ const MOODS  = ['Bình tĩnh', 'Lo lắng', 'Đang vội', 'Phân vân', 'Tự t
 const DEFAULT_Q = 'Có nên bắt đầu kế hoạch này trong tháng này không?';
 
 interface HeroSectionProps {
+  onCastingClick?: () => void;
   onManualClick?: () => void;
 }
 
-const HeroSection: React.FC<HeroSectionProps> = ({ onManualClick }) => {
+const HeroSection: React.FC<HeroSectionProps> = ({ onCastingClick, onManualClick }) => {
   const { computeReading } = useReading();
   const sample: ReadingResult = useMemo(
     () => computeReading(DEFAULT_Q, FIELDS[0], MOODS[0]),
@@ -32,7 +33,13 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onManualClick }) => {
             lời khuyên dễ hiểu, không mê tín hóa và có thể hành động.
           </p>
           <div className="hero-actions">
-            <a className="button primary-button" href="#reading">Gieo quẻ thử →</a>
+            <button
+              type="button"
+              className="button primary-button"
+              onClick={() => { if (onCastingClick) onCastingClick(); }}
+            >
+              Gieo quẻ thử →
+            </button>
             <button 
               type="button"
               className="button secondary-button" 

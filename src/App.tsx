@@ -17,7 +17,10 @@ const App: React.FC = () => {
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const mode = params.get('mode');
-    if (mode === 'manual') {
+    if (mode === 'casting') {
+      setKinhDichMode('casting');
+      setActiveTab('kinhdich');
+    } else if (mode === 'manual') {
       setKinhDichMode('manual');
       setActiveTab('kinhdich');
     } else if (mode === 'ai-reading') {
@@ -25,6 +28,13 @@ const App: React.FC = () => {
       setActiveTab('kinhdich');
     }
   }, []);
+
+  const handleCastingClick = () => {
+    setKinhDichMode('casting');
+    setActiveTab('kinhdich');
+    window.history.pushState({}, '', '?mode=casting');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleManualClick = () => {
     setKinhDichMode('manual');
@@ -41,7 +51,7 @@ const App: React.FC = () => {
       <main style={{ minHeight: '80vh' }}>
         {activeTab === 'home' && (
           <div className="fade-in">
-            <HeroSection onManualClick={handleManualClick} />
+            <HeroSection onCastingClick={handleCastingClick} onManualClick={handleManualClick} />
             <GallerySection />
           </div>
         )}
