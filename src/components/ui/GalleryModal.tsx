@@ -6,15 +6,39 @@ interface GalleryModalProps {
   onClose: () => void;
 }
 
-const GalleryModal: React.FC<GalleryModalProps> = ({ project, onClose }) => {
-  const [imgLoaded, setImgLoaded] = useState(false);
+// ── Isolated image sub-component so its state resets via `key` ───────────────
+// This avoids calling setState directly inside a useEffect body (ESLint: react-hooks/set-state-in-effect).
+interface ModalImageProps {
+  src: string;
+  alt: string;
+}
 
+const ModalImage: React.FC<ModalImageProps> = ({ src, alt }) => {
+  const [loaded, setLoaded] = useState(false);
+
+  return (
+    <div className={`image-loader modal-image-wrap${loaded ? ' loaded' : ''}`}>
+      <img
+        id="modalImage"
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+        onError={() => setLoaded(true)}
+      />
+    </div>
+  );
+};
+
+// ── Main modal ────────────────────────────────────────────────────────────────
+const GalleryModal: React.FC<GalleryModalProps> = ({ project, onClose }) => {
+  // Lock body scroll when modal is open
   useEffect(() => {
-    setImgLoaded(false);
     if (project) document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, [project]);
 
+  // Close on Escape key
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -33,16 +57,9 @@ const GalleryModal: React.FC<GalleryModalProps> = ({ project, onClose }) => {
           <button className="modal-close" id="modalClose" aria-label="Đóng modal" onClick={onClose}>
             ×
           </button>
-          <div className={`image-loader modal-image-wrap${imgLoaded ? ' loaded' : ''}`}>
-            <img
-              id="modalImage"
-              src={project.image}
-              alt={project.alt}
-              loading="lazy"
-              onLoad={() => setImgLoaded(true)}
-              onError={() => setImgLoaded(true)}
-            />
-          </div>
+          {/* key=project.image ensures ModalImage remounts (and resets its state)
+              every time a different project is opened — no setState-in-effect needed */}
+          <ModalImage key={project.image} src={project.image} alt={project.alt} />
           <div className="modal-content">
             <span className="data-badge" id="modalTag">{project.tag}</span>
             <h3 id="modalTitle">{project.title}</h3>

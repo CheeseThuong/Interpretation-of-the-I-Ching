@@ -6,7 +6,7 @@ import { branchElements, beastOrder, beastStartByDayStem } from '../data/canchi'
 import { coinLineOptions } from '../data/shared';
 
 // Re-export download/SVG helpers so existing imports don't break (Phase 6)
-export { buildManualChartSvg, downloadFile, downloadSvg, downloadPng } from './export';
+export { buildManualChartSvg, downloadFile, downloadSvg, downloadPng } from './export/index';
 
 // ============================================================
 // INDEX LOOKUPS
