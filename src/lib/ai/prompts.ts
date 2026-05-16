@@ -30,6 +30,7 @@ export function classifyQuestionContext(
   answerMode: string;
   requiredLens: string[];
   timeframe?: string;
+  psychologicalState?: string;
 } {
   const q = question.toLowerCase();
 
@@ -68,12 +69,34 @@ export function classifyQuestionContext(
     if (/\b(bán|sang nhượng)\b/.test(q)) decisionType = 'sell_or_keep';
     else decisionType = 'buy_or_wait';
   }
-  // ── Finance / loan / investment ───────────────────────────────────────────
-  else if (/\b(tiền|vay|đầu tư|cổ phiếu|chứng khoán|tài chính|lãi suất)\b/.test(q)) {
+  // ── Finance / loan / investment ─────────────────────────────────────────────────────
+  else if (/(tiền|vay|nợ|đầu tư|cổ phiếu|chứng khoán|tài chính|lãi suất|trái phiếu|quỹ|fund|dầu tư|vốn|danh mục|sinh lời)/.test(q)) {
     questionType = 'money_finance';
     riskLevel = 'high';
-    requiredLens.push('rủi ro tài chính', 'khả năng hoàn vốn', 'lãi suất', 'thanh khoản');
-    decisionType = /\b(vay|nợ)\b/.test(q) ? 'invest_or_wait' : 'general_guidance';
+    answerMode = 'risk_assessment';
+    const isInvestment = /(trái phiếu|cổ phiếu|chứng khoán|quỹ|đầu tư|fund|danh mục)/.test(q);
+    const isLoan = /\b(vay|nợ)\b/.test(q);
+    if (isInvestment) {
+      decisionType = 'invest_or_wait';
+      mainObject = q.match(/(quỹ tín dụng|trái phiếu|cổ phiếu|chứng khoán|quỹ mở|ETF)/)?.[0] || 'sản phẩm đầu tư';
+      requiredLens.push(
+        'khẩu vị rủi ro',
+        'mục tiêu đầu tư (tăng trưởng / bảo toàn vốn)',
+        'thời gian nắm giữ',
+        'dòng tiền dự phòng trước khi đầu tư',
+        'mức hiểu biết từng sản phẩm',
+        'rủi ro mất vốn',
+        'tính thanh khoản',
+        'phân bổ danh mục (không all-in)',
+        'không đầu tư vì FOMO'
+      );
+    } else if (isLoan) {
+      decisionType = 'invest_or_wait';
+      requiredLens.push('rủi ro tài chính', 'khả năng hoàn vốn', 'lãi suất', 'thanh khoản');
+    } else {
+      decisionType = 'general_guidance';
+      requiredLens.push('rủi ro tài chính', 'khả năng hoàn vốn', 'thanh khoản');
+    }
   }
   // ── Career / job ──────────────────────────────────────────────────────────
   else if (/\b(công việc|nghề|việc làm|nghỉ việc|xin việc|thăng chức|kinh doanh)\b/.test(q)) {
@@ -102,6 +125,14 @@ export function classifyQuestionContext(
     else decisionType = 'general_guidance';
   }
 
+  let psychologicalState: string | undefined;
+  if (questionType === 'money_finance' && answerMode === 'risk_assessment')
+    psychologicalState = 'Đang cân nhắc đầu tư — có thể vừa muốn tăng trưởng tài chính vừa sợ rủi ro mất vốn. Cần khung quyết định rõ ràng hơn là lời khẳng định có/không.';
+  else if (questionType === 'love_relationship')
+    psychologicalState = 'Đang tìm kiếm sự rõ ràng về cảm xúc hoặc tín hiệu từ phía người kia.';
+  else if (questionType === 'career_work')
+    psychologicalState = 'Đang ở điểm chuyển đổi nghề nghiệp — có thể đang mất động lực hoặc tìm kiếm cơ hội mới.';
+
   return {
     questionType,
     decisionType,
@@ -111,6 +142,7 @@ export function classifyQuestionContext(
     answerMode,
     requiredLens,
     timeframe,
+    psychologicalState,
   };
 }
 

@@ -17,6 +17,12 @@ export interface TarotCard {
 
 export type SpreadType = 'one-card' | 'three-cards' | 'love' | 'yes-no' | 'daily' | 'five-cards';
 
+export interface SpreadPositionMeta {
+  id: string;
+  label: string;
+  functionDescription: string;  // What does this position represent?
+  interpretationFocus: string[];  // Lens to apply when reading the card here
+}
 
 export interface TarotSpread {
   id: SpreadType;
@@ -24,6 +30,7 @@ export interface TarotSpread {
   description: string;
   cardCount: number;
   positions: string[];
+  positionMeta?: SpreadPositionMeta[];  // optional rich position descriptions
 }
 
 export interface DrawnCard {

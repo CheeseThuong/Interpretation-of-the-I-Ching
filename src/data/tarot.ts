@@ -6,35 +6,99 @@ export const SPREADS: TarotSpread[] = [
     name: 'Lá Bài Hôm Nay',
     description: 'Rút một lá để nhận thông điệp, năng lượng và điều nên chú ý trong ngày.',
     cardCount: 1,
-    positions: ['Thông điệp hôm nay']
+    positions: ['Thông điệp hôm nay'],
+    positionMeta: [
+      {
+        id: 'daily-message',
+        label: 'Thông điệp hôm nay',
+        functionDescription: 'Lá này phản ánh năng lượng chủ đạo của ngày hôm nay — tâm thế nên mang, điều nên chú ý và nhịp hành động phù hợp.',
+        interpretationFocus: ['mood và năng lượng ngày', 'điều nên chú ý', 'điều nên tránh', 'câu chốt cho ngày'],
+      }
+    ]
   },
   {
     id: 'one-card',
     name: 'Một Lá Bài (One Card)',
     description: 'Trải bài đơn giản nhất để có câu trả lời trực tiếp hoặc thông điệp cho ngày mới.',
     cardCount: 1,
-    positions: ['Thông điệp chính']
+    positions: ['Thông điệp chính'],
+    positionMeta: [
+      {
+        id: 'main-message',
+        label: 'Thông điệp chính',
+        functionDescription: 'Lá này trả lời trực tiếp câu hỏi của bạn — phản ánh năng lượng cốt lõi, tín hiệu hành động và góc nhìn biểu tượng cần nhớ.',
+        interpretationFocus: ['câu trả lời trực tiếp', 'tín hiệu tiến/dừng', 'năng lượng cốt lõi', 'lời khuyên thực tế'],
+      }
+    ]
   },
   {
     id: 'three-cards',
     name: 'Quá Khứ - Hiện Tại - Tương Lai',
     description: 'Trải bài 3 lá kinh điển để nhìn nhận dòng chảy thời gian của một sự việc.',
     cardCount: 3,
-    positions: ['Quá Khứ', 'Hiện Tại', 'Tương Lai']
+    positions: ['Quá Khứ', 'Hiện Tại', 'Tương Lai'],
+    positionMeta: [
+      {
+        id: 'past',
+        label: 'Quá Khứ',
+        functionDescription: 'Lá này cho thấy nền tảng, nguyên nhân hoặc tình huống trước đây đã tạo ra bối cảnh hiện tại.',
+        interpretationFocus: ['nguyên nhân gốc rễ', 'ảnh hưởng từ trước', 'bài học chưa giải quyết'],
+      },
+      {
+        id: 'present',
+        label: 'Hiện Tại',
+        functionDescription: 'Lá này mô tả trạng thái hiện tại, tâm thế của người hỏi và năng lượng đang bao phủ tình huống ngay lúc này.',
+        interpretationFocus: ['hiện trạng', 'tâm lý người hỏi', 'bối cảnh chính đang diễn ra'],
+      },
+      {
+        id: 'future',
+        label: 'Tương Lai',
+        functionDescription: 'Lá này chỉ ra xu hướng có thể xảy ra nếu tình hình tiếp tục theo hướng hiện tại — không phải định mệnh tuyệt đối.',
+        interpretationFocus: ['hướng phát triển', 'kết quả khả thi', 'điều kiện để kết quả tốt/xấu'],
+      }
+    ]
   },
   {
     id: 'love',
     name: 'Tình Yêu (Love Connection)',
     description: 'Phân tích mối quan hệ giữa bạn và người ấy.',
     cardCount: 3,
-    positions: ['Bạn', 'Người Ấy', 'Kết Nối/Tương Lai']
+    positions: ['Bạn', 'Người Ấy', 'Kết Nối/Tương Lai'],
+    positionMeta: [
+      {
+        id: 'you',
+        label: 'Bạn',
+        functionDescription: 'Lá này phản ánh năng lượng, tâm thế và cảm xúc hiện tại của bạn trong mối quan hệ này.',
+        interpretationFocus: ['cảm xúc nội tâm', 'mong muốn thực sự', 'tâm thế giao tiếp'],
+      },
+      {
+        id: 'them',
+        label: 'Người Ấy',
+        functionDescription: 'Lá này gợi ý về năng lượng và trạng thái của người kia — không phải đọc tâm, mà là tín hiệu biểu tượng.',
+        interpretationFocus: ['tín hiệu từ phía họ', 'tâm thế của họ', 'điều họ có thể đang trải qua'],
+      },
+      {
+        id: 'connection',
+        label: 'Kết Nối / Tương Lai',
+        functionDescription: 'Lá này cho thấy mối liên kết giữa hai người và hướng phát triển có thể xảy ra.',
+        interpretationFocus: ['chất lượng kết nối', 'hướng phát triển', 'điều kiện để mối quan hệ tiến triển'],
+      }
+    ]
   },
   {
     id: 'yes-no',
     name: 'Có hoặc Không (Yes/No)',
     description: 'Trải bài nhanh gọn giúp bạn đưa ra quyết định dứt khoát.',
     cardCount: 1,
-    positions: ['Câu trả lời']
+    positions: ['Câu trả lời'],
+    positionMeta: [
+      {
+        id: 'answer',
+        label: 'Câu trả lời',
+        functionDescription: 'Lá này đưa ra tín hiệu định hướng nhanh — xuôi thường nghiêng về có/tiến, ngược nghiêng về chờ/xem xét lại.',
+        interpretationFocus: ['tín hiệu có/không', 'điều kiện đi kèm', 'rủi ro cần cân nhắc'],
+      }
+    ]
   },
   {
     id: 'five-cards',
@@ -47,6 +111,38 @@ export const SPREADS: TarotSpread[] = [
       'Điều bị che khuất',
       'Lời khuyên',
       'Xu hướng kết quả'
+    ],
+    positionMeta: [
+      {
+        id: 'current-situation',
+        label: 'Tình huống hiện tại',
+        functionDescription: 'Lá này mô tả trạng thái hiện tại của vấn đề, tâm thế của người hỏi, hoặc năng lượng đang bao phủ tình huống.',
+        interpretationFocus: ['hiện trạng', 'tâm lý người hỏi', 'bối cảnh chính', 'năng lượng chủ đạo hiện tại'],
+      },
+      {
+        id: 'obstacle',
+        label: 'Điều đang cản trở',
+        functionDescription: 'Lá này chỉ ra trở ngại, nỗi sợ, thói quen, điều kiện bên ngoài hoặc yếu tố đang khiến vấn đề khó tiến triển.',
+        interpretationFocus: ['điểm nghẽn', 'rào cản nội tâm hoặc bên ngoài', 'sự thiếu rõ ràng', 'yếu tố làm chậm quyết định'],
+      },
+      {
+        id: 'hidden-factor',
+        label: 'Điều bị che khuất',
+        functionDescription: 'Lá này cho thấy điều người hỏi chưa nhìn rõ, thông tin tiềm ẩn, cơ hội hoặc rủi ro chưa được đánh giá đủ.',
+        interpretationFocus: ['điều chưa thấy', 'mặt ẩn của tình huống', 'tiềm năng hoặc rủi ro chìm', 'góc nhìn bị bỏ sót'],
+      },
+      {
+        id: 'advice',
+        label: 'Lời khuyên',
+        functionDescription: 'Lá này đưa ra thái độ hoặc hướng hành động nên cân nhắc dựa trên những gì các lá trước đã tiết lộ.',
+        interpretationFocus: ['nên làm gì', 'nên tiếp cận ra sao', 'nhịp hành động', 'thái độ phù hợp'],
+      },
+      {
+        id: 'likely-trend',
+        label: 'Xu hướng kết quả',
+        functionDescription: 'Lá này cho thấy xu hướng nếu tình hình tiếp tục theo hướng hiện tại. Không phải định mệnh tuyệt đối — là chiều hướng khả thi.',
+        interpretationFocus: ['hướng phát triển', 'khả năng kết quả', 'điều kiện để kết quả tốt', 'rủi ro nếu không thay đổi'],
+      }
     ]
   }
 ];

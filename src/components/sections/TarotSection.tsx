@@ -90,6 +90,7 @@ const TarotSection: React.FC = () => {
             spreadId:   selectedSpread.id,
             spreadName: selectedSpread.name,
             drawnCards: allDrawn,
+            positionMeta: selectedSpread.positionMeta,
           });
           setSynthesis(syn);
         }, revealDone);
