@@ -294,31 +294,52 @@ DECISION-SPECIFIC RULES (active because this is a "${preCtx.decisionType}" quest
   const isFiveCardSpread = spreadId.includes('5 Lá') || spreadId === 'five-cards';
 
   const dailySpreadLayer = isDailySpread ? `
-DAILY GUIDANCE RULES (active — Lá Bài Hôm Nay):
-- answerMode: daily_guidance
-- This is a DAILY CARD reading, NOT a decision oracle.
-- directAnswer: một câu thông điệp ngắn gọn cho ngày hôm nay.
-- decisionChecklist should be renamed mentally to "Điều nên chú ý hôm nay" — list 3-5 gentle observations.
-- practicalAdvice: 2-3 hành động nhỏ, tích cực cho ngày hôm nay.
-- thingsToAvoid: 1-2 điều nên tránh trong ngày (năng lượng, thái độ, không phải giao dịch).
-- riskNotes: không cần rủi ro tài chính — thay bằng "điều cần chú ý về cảm xúc hoặc năng lượng".
-- finalMessage: một câu chốt ngắn gọn, truyền cảm hứng cho ngày hôm nay.
-- DO NOT frame this as a major life decision — it is daily reflection.
-- DO NOT mention financial/legal/transaction risks unless user's question specifically involves them.
+DAILY GUIDANCE RULES — Lá Bài Hôm Nay (strict field mapping):
+answerMode MUST be: daily_guidance
+This is NOT a decision oracle. Do not frame it as one. Do not produce financial, legal, or asset advice.
+
+FIELD MAPPING FOR DAILY SPREAD:
+- directAnswer     → "Thông điệp chính hôm nay": Một câu thông điệp rõ ràng về năng lượng của ngày dựa trên lá bài.
+- quickSummary     → "Năng lượng / mood trong ngày": Mô tả bầu không khí năng lượng tổng quát. 1 câu ngắn.
+- contextualInterpretation → Diễn giải lá bài liên quan đến ngày hôm nay hoặc ý niệm người dùng. Kông có quyết định lớn.
+- decisionChecklist → ["Điều nên chú ý hôm nay"]: 3-5 điểm quan sát về cảm xúc, năng lượng, tương tác trong ngày.
+- practicalAdvice  → ["Việc nên làm"]: 2-3 hành động tích cực, cụ thể cho ngày hôm nay. Thực tế, không trầm bổng.
+- thingsToAvoid    → ["Điều nên tránh"]: 1-2 tâm thế, phản ứng hoặc năng lượng nên tránh trong ngày.
+- riskNotes        → ["Lưu ý năng lượng"]: 1-2 điều cần chú ý về cảm xúc hoặc giao tiếp trong ngày. Không phải rủi ro tài chính.
+- finalMessage     → "Câu chốt trong ngày": Một câu truyền cảm hứng, tóm gọn tinh thần của lá bài cho hôm nay.
+
+FORBIDDEN for daily spread:
+- Đừng nói về: pháp lý, giao dịch, tiền bạc, tài sản, hợp đồng, rủi ro tài chính.
+- Đừng dùng giọng quyết định. Dùng giọng nhẹ nhàng, đồng hành.
+- Đừng hỏa hẹn kết quả hay khẳng định tương lai.
 `.trim() : '';
 
   const fiveCardLayer = isFiveCardSpread ? `
-FIVE-CARD DEEP ANALYSIS RULES (active — Trải Bài 5 Lá):
-- Đây là trải bài phân tích sâu gồm 5 vị trí: Tình huống hiện tại | Điều đang cản trở | Điều bị che khuất | Lời khuyên | Xu hướng kết quả
-- symbolDetails.cardInterpretations MUST include ALL 5 cards, each with meaningInThisQuestion specific to its position role.
-- contextualInterpretation: kết nối cả 5 lá thành một mạch truyện liên kết về câu hỏi của người dùng.
-- decisionChecklist: dựa trên nội dung các lá, đưa ra 4-6 điểm cần kiểm tra hoặc hành động.
-- practicalAdvice: 3-4 hành động cụ thể phù hợp với câu hỏi và kết quả đọc bài.
-- thingsToAvoid: rủi ro cụ thể được chỉ ra bởi "Điều đang cản trở" và "Điều bị che khuất".
-- riskNotes: phân tích rủi ro từ xu hướng kết quả nếu tiếp tục theo hướng hiện tại.
-- finalMessage: tổng hợp thông điệp từ cả 5 lá theo chiều hướng tích cực và thực tế.
-`.trim() : '';
+FIVE-CARD DEEP ANALYSIS RULES — Trải Bài 5 Lá (strict field mapping):
+answerMode CAN be: decision_guidance | emotional_reading | reflection (match user's question)
 
+POSITION ROLES (must follow exactly):
+1. Tình huống hiện tại  → Diễn giải trạng thái / điều đang xảy ra liên quan câu hỏi.
+2. Điều đang cản trở      → Yếu tố nào đang gây khó khăn, trì hoãn, hoặc mâu thuẫn liên quan câu hỏi.
+3. Điều bị che khuất       → Thông tin ẩn, cảm xúc chưa rõ, hoặc góc nhìn bỏ sót liên quan câu hỏi.
+4. Lời khuyên             → Hướng hành động rõ ràng dựa trên 3 lá trước.
+5. Xu hướng kết quả       → Chiều hướng khả thi nếu tiếp tục theo hiện tại (không đảm bảo).
+
+FIELD MAPPING FOR FIVE-CARD SPREAD:
+- symbolDetails.cardInterpretations: MUST include ALL 5 cards. "meaningInThisQuestion" MUST reflect the position role + user's actual question. NEVER copy paste the generic card meaning.
+- directAnswer: Tóm tắt thông điệp chính từ cả 5 lá dựa trên câu hỏi.
+- contextualInterpretation: Mạch kể liên kết cả 5 lá — bắt đầu từ "Tình huống" → "Điều cản trở" → "Điều ẩn" → "Hướng giải" → "Kết quả". Liên quan chặt với câu hỏi.
+- decisionChecklist: 4-6 điểm cụ thể người dùng cần kiểm tra hoặc thực hiện (dựa trên câu hỏi, không chung chung).
+- practicalAdvice: 3-4 bước hành động cụ thể phù hợp với câu hỏi và nội dung đọc bài.
+- thingsToAvoid: Dựa trên lá 2 ("Điều cản trở") và lá 3 ("Điều ẩn") — rủi ro cụ thể liên quan câu hỏi.
+- riskNotes: Dựa trên lá 5 ("Xu hướng") — nếu tiếp tục hướng hiện tại, điều gì có thể xảy ra.
+- finalMessage: Tổng kết 1 câu từ toàn bộ 5 lá — thực tế, có chiều sâu.
+
+FORBIDDEN for five-card spread:
+- Đừng sao chép nghĩa lá bài cơ bản ("The Moon đại diện cho..." chung chung).
+- "meaningInThisQuestion" phải có từ đặc trưng của vị trí đó và câu hỏi của người dùng.
+- Đừng cho advice giống nhầu giữa các lá.
+`.trim() : '';
 
   // Reference section — only injected if the helper found matching rows
   const referenceSection = referenceContext
@@ -397,20 +418,26 @@ YÊU CẦU ĐẦU RA — Chỉ trả về JSON hợp lệ, không có markdown, 
     "changingFactor": "Yếu tố then chốt cần chú ý.",
     "futureTrend": "Xu hướng sắp tới theo biểu tượng."
   },
-  "contextualInterpretation": "Luận giải chi tiết (3-5 đoạn) kết nối Tarot với bối cảnh thực tế của người dùng. Phải đề cập cụ thể đến đối tượng (xe, nhà, công việc, v.v.).",
+  "contextualInterpretation": "${isDailySpread
+    ? 'Diễn giải lá bài trong bối cảnh ngày hôm nay và ý niệm người dùng.'
+    : isFiveCardSpread
+    ? 'Mạch kể 5 lá: Tình huống → Cản trở → Ẩn → Giải pháp → Xu hướng. Liên quan chặt với câu hỏi.'
+    : 'Luận giải chi tiết (3-5 đoạn) kết nối Tarot với bối cảnh thực tế của người dùng.'}",
   "decisionChecklist": [
-    "Điểm thực tế 1 cần kiểm tra trước khi quyết định",
-    "Điểm thực tế 2"
+    "${isDailySpread
+      ? 'Điều nên chú ý hôm nay 1'
+      : isFiveCardSpread
+      ? 'Điểm cần kiểm tra/hành động cụ thể 1 (liên quan câu hỏi)'
+      : 'Điểm thực tế 1 cần kiểm tra trước khi quyết định'}"
   ],
   "practicalAdvice": [
-    "Hành động cụ thể 1 (liên quan đến câu hỏi)",
-    "Hành động cụ thể 2"
+    "${isDailySpread ? 'Việc nên làm hôm nay 1' : 'Hành động cụ thể 1 (liên quan đến câu hỏi)'}"
   ],
   "thingsToAvoid": [
-    "Điều cụ thể cần tránh 1 (liên quan đến quyết định)"
+    "${isDailySpread ? 'Điều nên tránh trong ngày' : 'Điều cụ thể cần tránh 1 (liên quan đến quyết định)'}"
   ],
   "riskNotes": [
-    "Rủi ro tài chính/pháp lý/thực tế 1"
+    "${isDailySpread ? 'Lưu ý về năng lượng/cảm xúc trong ngày' : 'Rủi ro tài chính/pháp lý/thực tế 1'}"
   ],
   "symbolDetails": {
     "cardInterpretations": [
