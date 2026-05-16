@@ -1,5 +1,11 @@
 export type DecisionSignal = 'proceed' | 'wait' | 'avoid' | 'unclear' | 'conditional';
 export type ConfidenceLevel = 'low' | 'medium' | 'high';
+export type ReadingTone =
+  | 'Gentle and healing'
+  | 'Direct and honest'
+  | 'Mystical and poetic'
+  | 'Practical and logical'
+  | 'Gen Z spiritual bestie';
 
 export type QuestionType = 
   | 'love_relationship' 

@@ -5,7 +5,8 @@ import { computeManualHexagramState } from '../../utils/hexagram';
 import { coinLineOptions } from '../../data/shared';
 import { heavenlyStems } from '../../data/canchi';
 import { mockAIHexagramReading } from '../../utils/mockAI';
-import type { ReadingTone, AIReadingResponse } from '../../utils/mockAI';
+import type { AIReadingResponse } from '../../utils/mockAI';
+import type { ReadingTone } from '../../types/ai';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
 
 const TOPICS = [

@@ -1,5 +1,5 @@
-﻿import type { CastingMetadata, ManualHexagramState } from '../types';
-import type { UnifiedAIReadingResponse, DecisionSignal, ReadingTone } from '../types/ai';
+import type { CastingMetadata, ManualHexagramState } from '../types';
+import type { UnifiedAIReadingResponse, ReadingTone } from '../types/ai';
 
 // Re-exporting for UI use
 export type AIReadingResponse = UnifiedAIReadingResponse;

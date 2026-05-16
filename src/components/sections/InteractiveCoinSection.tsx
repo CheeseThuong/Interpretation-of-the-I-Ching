@@ -3,7 +3,8 @@ import HexagramDisplay from '../ui/HexagramDisplay';
 import CoinFlip from '../ui/CoinFlip';
 import { computeManualHexagramState } from '../../utils/hexagram';
 import { mockAIHexagramReading } from '../../utils/mockAI';
-import type { ReadingTone, AIReadingResponse } from '../../utils/mockAI';
+import type { AIReadingResponse } from '../../utils/mockAI';
+import type { ReadingTone } from '../../types/ai';
 import type { ManualHexagramState, CastingMetadata } from '../../types';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
 
@@ -36,7 +37,7 @@ const InteractiveCoinSection: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [manualDate, setManualDate] = useState('');
   const [manualTime, setManualTime] = useState('');
-  const [showAdvancedResult, setShowAdvancedResult] = useState(false);
+
   
   // Casting State
   const [coinLines, setCoinLines] = useState<number[]>([]);
@@ -120,7 +121,7 @@ const InteractiveCoinSection: React.FC = () => {
     setNotes('');
     setManualDate('');
     setManualTime('');
-    setShowAdvancedResult(false);
+
     setMetadata(null);
     setHexagramState(null);
     setCurrentFaces([3, 3, 3]);

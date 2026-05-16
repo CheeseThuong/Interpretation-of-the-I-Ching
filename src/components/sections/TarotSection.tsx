@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import '../../styles/tarot.css';
 import { SPREADS, MOCK_DECK } from '../../data/tarot';
 import type { TarotSpread, TarotCard, DrawnCard } from '../../types/tarot';
-import { mockAITarotReading, type ReadingTone } from '../../utils/mockAI';
+import { mockAITarotReading } from '../../utils/mockAI';
+import type { ReadingTone } from '../../types/ai';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
 
 type TarotStep = 'select-spread' | 'shuffle' | 'draw' | 'result';
