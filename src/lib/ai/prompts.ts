@@ -43,7 +43,9 @@ export function classifyQuestionContext(
   // ── Timeframe detection (run first, applies to any category) ──────────────
   let timeframe: string | undefined;
   if (/tuần sau|tuần tới/.test(q))        timeframe = 'tuần sau';
+  else if (/tuần này/.test(q))             timeframe = 'tuần này';
   else if (/tháng sau|tháng tới/.test(q)) timeframe = 'tháng sau';
+  else if (/tháng này/.test(q))           timeframe = 'tháng này';
   else if (/hôm nay/.test(q))             timeframe = 'hôm nay';
   else if (/ngày mai/.test(q))            timeframe = 'ngày mai';
   else if (/sắp tới|trong thời gian tới|tương lai gần/.test(q)) timeframe = 'sắp tới';
@@ -57,8 +59,8 @@ export function classifyQuestionContext(
     if (/\b(bán|sang nhượng|thanh lý)\b/.test(q)) decisionType = 'sell_or_keep';
     else if (/\b(mua|sắm)\b/.test(q)) decisionType = 'buy_or_wait';
   }
-  // ── Real estate ───────────────────────────────────────────────────────────
-  else if (/\b(nhà|căn hộ|đất|bất động sản|chung cư)\b/.test(q)) {
+  // ── Real estate — no \b (breaks on Vietnamese diacritics) ──────────────────
+  else if (/(nhà|căn hộ|đất|bất động sản|chung cư)/.test(q)) {
     questionType = 'housing_property';
     mainObject = 'nhà/đất';
     requiredLens.push('giá thị trường', 'pháp lý sổ đỏ', 'nguồn vốn', 'vị trí', 'thanh khoản');
