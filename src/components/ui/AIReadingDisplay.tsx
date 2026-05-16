@@ -177,7 +177,12 @@ const AIReadingDisplay: React.FC<AIReadingDisplayProps> = ({ response }) => {
         {response.decisionChecklist && response.decisionChecklist.length > 0 && (
           <div className="checklist-section glass-box" style={{ padding: '25px', marginBottom: '30px', border: '1px solid rgba(167, 139, 250, 0.2)' }}>
             <h5 style={{ color: '#a78bfa', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '1.2rem' }}>📋</span> Checklist quyết định
+              <span style={{ fontSize: '1.2rem' }}>
+                {questionContext.answerMode === 'emotional_reading' ? '💜' : '📋'}
+              </span>
+              {questionContext.answerMode === 'emotional_reading'
+                ? 'Điểm nên quan sát'
+                : 'Checklist quyết định'}
             </h5>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '10px' }}>
               {response.decisionChecklist.map((item, i) => (
@@ -210,7 +215,10 @@ const AIReadingDisplay: React.FC<AIReadingDisplayProps> = ({ response }) => {
 
         <div className="info-panel" style={{ padding: '20px', background: 'rgba(251, 191, 36, 0.05)', border: '1px solid rgba(251, 191, 36, 0.1)' }}>
           <h5 style={{ color: '#fbbf24', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '1.1rem' }}>⚠️</span> Rủi ro & Lưu ý
+            <span style={{ fontSize: '1.1rem' }}>
+              {questionContext.answerMode === 'emotional_reading' ? '💭' : '⚠️'}
+            </span>
+            {questionContext.answerMode === 'emotional_reading' ? 'Rủi ro cảm xúc' : 'Rủi ro & Lưu ý'}
           </h5>
           <ul className="dot-list" style={{ margin: 0 }}>
             {response.riskNotes.map((r, i) => <li key={i} style={{ fontSize: '0.9rem' }}>{r}</li>)}

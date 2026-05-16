@@ -29,10 +29,10 @@ export function classifyQuestionContext(
   riskLevel: string;
   answerMode: string;
   requiredLens: string[];
+  timeframe?: string;
 } {
   const q = question.toLowerCase();
 
-  // Simple heuristic pre-classification so the prompt can self-correct it
   let questionType = 'unclear';
   let decisionType = 'unclear';
   let mainObject = topic || '';
@@ -40,7 +40,15 @@ export function classifyQuestionContext(
   let answerMode = 'decision_guidance';
   const requiredLens: string[] = [];
 
-  // Vehicle / asset
+  // ── Timeframe detection (run first, applies to any category) ──────────────
+  let timeframe: string | undefined;
+  if (/tuần sau|tuần tới/.test(q))        timeframe = 'tuần sau';
+  else if (/tháng sau|tháng tới/.test(q)) timeframe = 'tháng sau';
+  else if (/hôm nay/.test(q))             timeframe = 'hôm nay';
+  else if (/ngày mai/.test(q))            timeframe = 'ngày mai';
+  else if (/sắp tới|trong thời gian tới|tương lai gần/.test(q)) timeframe = 'sắp tới';
+
+  // ── Vehicle / asset (must not match love keywords first) ──────────────────
   if (/\b(xe|xe hơi|ô tô|moto|xe máy|phương tiện)\b/.test(q)) {
     questionType = 'vehicle_property_asset';
     mainObject = 'xe';
@@ -49,7 +57,7 @@ export function classifyQuestionContext(
     if (/\b(bán|sang nhượng|thanh lý)\b/.test(q)) decisionType = 'sell_or_keep';
     else if (/\b(mua|sắm)\b/.test(q)) decisionType = 'buy_or_wait';
   }
-  // Real estate
+  // ── Real estate ───────────────────────────────────────────────────────────
   else if (/\b(nhà|căn hộ|đất|bất động sản|chung cư)\b/.test(q)) {
     questionType = 'housing_property';
     mainObject = 'nhà/đất';
@@ -58,27 +66,38 @@ export function classifyQuestionContext(
     if (/\b(bán|sang nhượng)\b/.test(q)) decisionType = 'sell_or_keep';
     else decisionType = 'buy_or_wait';
   }
-  // Finance / loan / investment
+  // ── Finance / loan / investment ───────────────────────────────────────────
   else if (/\b(tiền|vay|đầu tư|cổ phiếu|chứng khoán|tài chính|lãi suất)\b/.test(q)) {
     questionType = 'money_finance';
     riskLevel = 'high';
     requiredLens.push('rủi ro tài chính', 'khả năng hoàn vốn', 'lãi suất', 'thanh khoản');
     decisionType = /\b(vay|nợ)\b/.test(q) ? 'invest_or_wait' : 'general_guidance';
   }
-  // Career / job
+  // ── Career / job ──────────────────────────────────────────────────────────
   else if (/\b(công việc|nghề|việc làm|nghỉ việc|xin việc|thăng chức|kinh doanh)\b/.test(q)) {
     questionType = 'career_work';
     riskLevel = 'medium';
     requiredLens.push('thu nhập', 'cơ hội phát triển', 'môi trường làm việc');
     decisionType = /\b(nghỉ|bỏ)\b/.test(q) ? 'quit_or_stay' : 'general_guidance';
   }
-  // Love / relationship
-  else if (/\b(tình yêu|người yêu|hôn nhân|bạn trai|bạn gái|chia tay|yêu|kết hôn)\b/.test(q)) {
+  // ── Love / relationship — expanded Vietnamese keyword set ─────────────────
+  else if (/(tình duyên|tình cảm|tình yêu|người yêu|hôn nhân|bạn trai|bạn gái|chia tay|kết hôn|\byêu\b|crush|nyc|người cũ|mối quan hệ|họ có thích|người đó|quay lại|hẹn hò|\bduyên\b|độc thân|có thích tôi|còn tình cảm|thích tôi không|yêu tôi không)/.test(q)) {
     questionType = 'love_relationship';
     answerMode = 'emotional_reading';
     riskLevel = 'low';
-    requiredLens.push('cảm xúc', 'giao tiếp', 'cam kết');
-    decisionType = /\b(chia tay|tiếp tục)\b/.test(q) ? 'continue_or_stop' : 'general_guidance';
+    mainObject = 'tình duyên / chuyện tình cảm';
+    requiredLens.push(
+      'tín hiệu giao tiếp',
+      'cảm xúc của bản thân',
+      'cơ hội gặp gỡ hoặc kết nối',
+      'sự rõ ràng trong hành động',
+      'ranh giới cảm xúc',
+      'tránh suy diễn quá mức',
+      timeframe ? `nhịp tiến triển trong ${timeframe}` : 'nhịp tiến triển sắp tới'
+    );
+    if (/\b(chia tay|tiếp tục|quay lại)\b/.test(q)) decisionType = 'continue_or_stop';
+    else if (/\b(có thích|có yêu|còn tình cảm|thích tôi|yêu tôi)\b/.test(q)) decisionType = 'unclear';
+    else decisionType = 'general_guidance';
   }
 
   return {
@@ -89,6 +108,7 @@ export function classifyQuestionContext(
     riskLevel,
     answerMode,
     requiredLens,
+    timeframe,
   };
 }
 
@@ -229,13 +249,30 @@ export function buildTarotReadingPrompt(
   // Pre-classify the question so the prompt can self-verify and correct
   const preCtx = classifyQuestionContext(data.question, data.topic);
 
-  // Decision-specific instructions injected when the question is clearly about
-  // selling/buying assets, taking loans, signing contracts, or quitting a job.
+  const isLoveQuestion = preCtx.questionType === 'love_relationship';
+
   const isHighStakesDecision =
+    !isLoveQuestion &&
     preCtx.decisionType !== 'general_guidance' &&
     preCtx.decisionType !== 'unclear' &&
     preCtx.decisionType !== 'confess_or_wait';
 
+  // Love-specific prompt block — fires for all love/relationship questions
+  const loveSpecificLayer = isLoveQuestion ? `
+LOVE/RELATIONSHIP-SPECIFIC RULES (active — questionType: love_relationship):
+- answerMode: emotional_reading
+- decisionSignal: use proceed (nên hành động), wait (nên kiên nhẫn), or unclear (chưa đủ dữ liệu)
+- contextualInterpretation MUST discuss: bầu không khí cảm xúc, tín hiệu giao tiếp, cơ hội kết nối, ranh giới cảm xúc
+- decisionChecklist MUST contain: ${preCtx.requiredLens.join(', ')}
+- practicalAdvice MUST be about: cách quan sát, cách hành động, cách duy trì kết nối${preCtx.timeframe ? ` trong ${preCtx.timeframe}` : ''}
+- thingsToAvoid MUST be about: suy diễn quá mức, ép buộc cảm xúc, hành động vì nỗi sợ
+- riskNotes: rủi ro cảm xúc (hiểu lầm, kỳ vọng quá cao, bỏ lỡ tín hiệu thật)
+- FORBIDDEN — DO NOT mention: pháp lý, thanh khoản, giao dịch, giá cả, hợp đồng, tài chính, tài sản
+- finalMessage: nhẹ nhàng, khuyến khích, liên quan đến chuyện tình cảm${preCtx.timeframe ? ` ${preCtx.timeframe}` : ''}
+- DO NOT claim certainty about another person's feelings — frame as "tín hiệu" or "xu hướng"
+`.trim() : '';
+
+  // High-stakes material/financial decision block
   const decisionSpecificLayer = isHighStakesDecision
     ? `
 DECISION-SPECIFIC RULES (active because this is a "${preCtx.decisionType}" question):
@@ -290,7 +327,7 @@ ${LAYER_3_INSTRUCTIONS}
 Câu hỏi: "${data.question}"
 Chủ đề: ${data.topic || 'Không xác định'}
 Trải bài: ${data.spreadType}
-Thời điểm: ${data.timestamp}
+Thời điểm: ${data.timestamp}${preCtx.timeframe ? `\nKhung thời gian được đề cập: ${preCtx.timeframe}` : ''}
 Ghi chú người dùng: ${data.userNotes || 'Không có'}
 Giọng điệu: ${data.readingTone}
 
@@ -304,7 +341,7 @@ BỐI CẢNH CÂU HỎI (pre-classification — hãy tự kiểm tra và điều
 - riskLevel: ${preCtx.riskLevel}
 - requiredLens: ${preCtx.requiredLens.length > 0 ? preCtx.requiredLens.join(', ') : 'Không có (general guidance)'}
 ━━━━━━━━━━━━━━━━━━━━━━━━
-${decisionSpecificLayer ? '\n' + decisionSpecificLayer + '\n' : ''}${referenceSection ? '\n' + referenceSection + '\n' : ''}
+${loveSpecificLayer ? '\n' + loveSpecificLayer + '\n' : ''}${decisionSpecificLayer ? '\n' + decisionSpecificLayer + '\n' : ''}${referenceSection ? '\n' + referenceSection + '\n' : ''}
 YÊU CẦU ĐẦU RA — Chỉ trả về JSON hợp lệ, không có markdown, không có text bên ngoài:
 {
   "directAnswer": "Câu trả lời trực tiếp cho câu hỏi trong 1-3 câu, bằng tiếng Việt.",
