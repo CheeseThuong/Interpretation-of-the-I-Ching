@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import '../../styles/tarot.css';
-import { SPREADS, MOCK_DECK } from '../../data/tarot';
+import { SPREADS } from '../../data/tarot';
 import type { TarotSpread, TarotCard, DrawnCard } from '../../types/tarot';
 import { mockAITarotReading } from '../../utils/mockAI';
 import type { ReadingTone } from '../../types/ai';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
+import { createFreshTarotDeck, shuffleTarotDeck, drawTarotCards } from '../../utils/tarotDeck';
 
 type TarotStep = 'select-spread' | 'shuffle' | 'draw' | 'result';
 
@@ -37,8 +38,8 @@ const TarotSection: React.FC = () => {
 
   const handleSelectSpread = (spread: TarotSpread) => {
     setSelectedSpread(spread);
-    // Initialize deck
-    setDeck([...MOCK_DECK].sort(() => Math.random() - 0.5));
+    // Start with a fresh full 78-card deck (not shuffled yet — shuffle happens on handleShuffle)
+    setDeck(createFreshTarotDeck());
     setDrawnCards([]);
     setStep('shuffle');
   };
@@ -51,45 +52,37 @@ const TarotSection: React.FC = () => {
     setIsShuffling(true);
     setTimeout(() => {
       setIsShuffling(false);
-      setDeck(prev => [...prev].sort(() => Math.random() - 0.5));
+      // Fisher-Yates with crypto-safe random — fresh shuffle every time
+      setDeck(shuffleTarotDeck(createFreshTarotDeck()));
       setStep('draw');
-    }, 2000); // 2 seconds of shuffling animation
+    }, 2000);
   };
 
   const handleDrawCard = () => {
     if (!selectedSpread) return;
     if (drawnCards.length >= selectedSpread.cardCount) return;
-
-    const topCard = deck[0];
-    const newDeck = deck.slice(1);
-    const isReversed = Math.random() > 0.6; // 40% chance of reversal
-
-    const newDrawn: DrawnCard = {
-      card: topCard,
-      isReversed,
-      positionName: selectedSpread.positions[drawnCards.length]
-    };
-
-    setDrawnCards(prev => [...prev, newDrawn]);
-    setDeck(newDeck);
-
-    if (drawnCards.length + 1 >= selectedSpread.cardCount) {
+    // On first draw, atomically draw ALL required cards at once from the shuffled deck.
+    // This prevents duplicate cards and ensures each spread gets a unique set.
+    if (drawnCards.length === 0) {
+      const allDrawn = drawTarotCards(deck, selectedSpread.cardCount, selectedSpread);
+      setDrawnCards(allDrawn);
+      setDeck(prev => prev.slice(selectedSpread.cardCount));
       setIsRevealing(true);
       setTimeout(() => {
         setStep('result');
-        // Stagger the flips
         selectedSpread.positions.forEach((_, idx) => {
           setTimeout(() => {
             setRevealedIndices(prev => [...prev, idx]);
-          }, 800 + (idx * 600)); // Wait for fly-in, then stagger
+          }, 800 + (idx * 600));
         });
-        
-        // Unlock UI after all animations finish
         setTimeout(() => {
           setIsRevealing(false);
         }, 800 + (selectedSpread.cardCount * 600) + 500);
       }, 1000);
+      return;
     }
+    // Guard: if already drawing, do nothing
+    if (drawnCards.length >= selectedSpread.cardCount) return;
   };
 
   const handleGetAIReading = async () => {
@@ -139,6 +132,7 @@ const TarotSection: React.FC = () => {
     setStep('select-spread');
     setQuestion('');
     setSelectedSpread(null);
+    setDeck([]);              // clear stale deck
     setDrawnCards([]);
     setRevealedIndices([]);
     setIsRevealing(false);
