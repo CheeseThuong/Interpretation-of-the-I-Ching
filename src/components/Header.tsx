@@ -5,7 +5,7 @@ const NAV_LINKS = [
   { href: '#reading',  label: 'Luận quẻ AI' },
   { href: '#coins',    label: 'Lập lục hào' },
   { href: '#decision', label: 'Random quyết định' },
-  { href: '#data',     label: 'Nguồn data' },
+  // { href: '#data',     label: 'Nguồn data' },
   { href: '#gallery',  label: 'Gallery' },
 ];
 

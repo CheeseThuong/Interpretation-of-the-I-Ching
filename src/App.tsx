@@ -4,7 +4,7 @@ import HeroSection from './components/sections/HeroSection';
 import ReadingSection from './components/sections/ReadingSection';
 import CoinSection from './components/sections/CoinSection';
 import DecisionSection from './components/sections/DecisionSection';
-import DataSection from './components/sections/DataSection';
+// import DataSection from './components/sections/DataSection';
 import FoundationSection from './components/sections/FoundationSection';
 import GallerySection from './components/sections/GallerySection';
 import Footer from './components/Footer';
@@ -23,12 +23,12 @@ const App: React.FC = () => {
         <ReadingSection />
         <CoinSection />
         <DecisionSection />
-        <DataSection />
+        {/* <DataSection /> */}
         <FoundationSection />
         <GallerySection />
 
         {/* UI checklist */}
-        <section className="section">
+        {/* <section className="section">
           <div className="container">
             <div className="section-title reveal">
               <p className="eyebrow">UI/UX checklist</p>
@@ -52,7 +52,7 @@ const App: React.FC = () => {
               ))}
             </div>
           </div>
-        </section>
+        </section> */}
       </main>
 
       <Footer />
