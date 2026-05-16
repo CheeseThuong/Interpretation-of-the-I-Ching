@@ -1,8 +1,12 @@
 import type { LineType, Trigram, Hexagram, LineDetail, ManualHexagramState, CoinLineOption } from '../types';
+import { DEFAULT_SELF_RESPONSE } from '../types';
 import { trigramByBits } from '../data/trigrams';
 import { HEXAGRAMS, palaceSequences, palaceElements, palaceStageNames, selfResponseByStage, najia } from '../data/hexagrams';
 import { branchElements, beastOrder, beastStartByDayStem } from '../data/canchi';
 import { coinLineOptions } from '../data/shared';
+
+// Re-export download/SVG helpers so existing imports don't break (Phase 6)
+export { buildManualChartSvg, downloadFile, downloadSvg, downloadPng } from './export';
 
 // ============================================================
 // INDEX LOOKUPS
@@ -82,6 +86,52 @@ export function buildLinesFromSeed(seed: number): LineType[] {
 }
 
 // ============================================================
+// NUCLEAR HEXAGRAM (Quẻ Hỗ) — Phase 5
+// ============================================================
+
+/**
+ * Builds the 6 lines of the nuclear hexagram.
+ * - Lower trigram of nuclear: lines[1], lines[2], lines[3]  (hào 2, 3, 4)
+ * - Upper trigram of nuclear: lines[2], lines[3], lines[4]  (hào 3, 4, 5)
+ *
+ * Input `lines` must be ordered bottom-to-top (lines[0] = hào 1, lines[5] = hào 6).
+ */
+export function getNuclearHexagramLines(lines: LineType[]): LineType[] {
+  return [
+    lines[1], // hào 2 → nuclear lower hào 1
+    lines[2], // hào 3 → nuclear lower hào 2
+    lines[3], // hào 4 → nuclear lower hào 3
+    lines[2], // hào 3 → nuclear upper hào 1
+    lines[3], // hào 4 → nuclear upper hào 2
+    lines[4], // hào 5 → nuclear upper hào 3
+  ];
+}
+
+// ============================================================
+// VALIDATION — Phase 3
+// ============================================================
+
+const VALID_COIN_VALUES = new Set([6, 7, 8, 9]);
+
+/**
+ * Validates that exactly 6 coin values are provided and each is one of 6, 7, 8, 9.
+ * Throws a descriptive Error on the first violation found.
+ */
+export function validateCoinLines(coinLines: number[]): void {
+  if (coinLines.length !== 6) {
+    throw new Error(`Cần nhập đúng 6 hào. Hiện tại chỉ có ${coinLines.length} hào.`);
+  }
+
+  coinLines.forEach((line, index) => {
+    if (!VALID_COIN_VALUES.has(Number(line))) {
+      throw new Error(
+        `Hào ${index + 1} không hợp lệ (giá trị: ${line}). Chỉ được nhập 6, 7, 8 hoặc 9.`,
+      );
+    }
+  });
+}
+
+// ============================================================
 // NAJIA / PALACE LOGIC
 // ============================================================
 
@@ -124,25 +174,17 @@ export function buildLineDetails(
   const beasts = getSixBeasts(dayStem);
   const palaceElement = hexInfo.palaceElement ?? '-';
 
+  // Resolve Thế / Ứng position ONCE outside the map (Phase 2)
+  const selfResponse = selfResponseByStage[hexInfo.palaceStage ?? ''] ?? DEFAULT_SELF_RESPONSE;
+
   return lines.map((lineType, index): LineDetail => {
     const lineNo = index + 1;
     const canChi = canChiLines[index] ?? '-';
     const branch = getBranchFromCanChi(canChi);
     const branchElement = branchElements[branch] ?? '-';
 
-    type SelfResponsePosition = {
-      self: number;
-      response: number;
-    };
-
-    const selfResponse: SelfResponsePosition =
-      selfResponseByStage[hexInfo.palaceStage ?? ''] ?? {
-        self: 0,
-        response: 0,
-      };
-
-    let selfOrResponse = '-';
-
+    // Use else-if: a line cannot be both Thế and Ứng (Phase 2)
+    let selfOrResponse: '-' | 'Thế' | 'Ứng' = '-';
     if (selfResponse.self === lineNo) {
       selfOrResponse = 'Thế';
     } else if (selfResponse.response === lineNo) {
@@ -165,7 +207,7 @@ export function buildLineDetails(
 // MANUAL HEXAGRAM STATE
 // ============================================================
 
-/** Default 6 coin values matching Lôi Hỏa Phong → Lôi Sơn Tiểu Quá */
+/** Default 6 coin values — Lôi Hỏa Phong → Lôi Sơn Tiểu Quá */
 export const DEFAULT_COIN_LINES: number[] = [9, 8, 7, 7, 8, 8];
 
 export function computeManualHexagramState(
@@ -173,6 +215,9 @@ export function computeManualHexagramState(
   dayStem: string,
   manualQuestion: string,
 ): ManualHexagramState {
+  // Phase 3: validate before any computation
+  validateCoinLines(coinLines);
+
   const lineObjects: CoinLineOption[] = coinLines.map(
     (v) => coinLineOptions.find((o) => o.value === Number(v)) ?? coinLineOptions[2],
   );
@@ -188,8 +233,14 @@ export function computeManualHexagramState(
   const changedLower = getTrigramFromLines(changedLines.slice(0, 3));
   const changedUpper = getTrigramFromLines(changedLines.slice(3, 6));
 
+  // Phase 5: nuclear hexagram
+  const nuclearLines = getNuclearHexagramLines(primaryLines);
+  const nuclearLower = getTrigramFromLines(nuclearLines.slice(0, 3));
+  const nuclearUpper = getTrigramFromLines(nuclearLines.slice(3, 6));
+
   const primaryInfo = getHexInfoFromLines(primaryLines);
   const changedInfo = getHexInfoFromLines(changedLines);
+  const nuclearInfo = getHexInfoFromLines(nuclearLines);
 
   return {
     dayStem,
@@ -197,159 +248,18 @@ export function computeManualHexagramState(
     lineObjects,
     primaryLines,
     changedLines,
+    nuclearLines,
     movingLines,
     lower,
     upper,
     changedLower,
     changedUpper,
+    nuclearLower,
+    nuclearUpper,
     primaryInfo,
     changedInfo,
+    nuclearInfo,
     primaryDetails: buildLineDetails(primaryLines, primaryInfo, movingLines, dayStem),
     changedDetails: buildLineDetails(changedLines, changedInfo, movingLines, dayStem),
   };
-}
-
-// ============================================================
-// SVG / DOWNLOAD HELPERS
-// ============================================================
-
-function escapeXml(value: string | number): string {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&apos;');
-}
-
-function svgLine(x: number, y: number, type: LineType, isMoving = false): string {
-  const color = isMoving ? '#d71920' : '#111111';
-  const stroke = `stroke="${color}" stroke-width="10" stroke-linecap="round"`;
-  if (type === 'yang') return `<line x1="${x}" y1="${y}" x2="${x + 160}" y2="${y}" ${stroke}/>`;
-  return `
-    <line x1="${x}" y1="${y}" x2="${x + 62}" y2="${y}" ${stroke}/>
-    <line x1="${x + 98}" y1="${y}" x2="${x + 160}" y2="${y}" ${stroke}/>
-  `;
-}
-
-function svgHexagram(x: number, y: number, lines: LineType[], movingLines: number[] = []): string {
-  return [...lines].reverse().map((lineType, ri) => {
-    const lineNo = 6 - ri;
-    return svgLine(x, y + ri * 28, lineType, movingLines.includes(lineNo));
-  }).join('');
-}
-
-function svgTable(x: number, y: number, title: string, details: LineDetail[]): string {
-  const colWidths = [52, 78, 70, 116, 132, 108];
-  const rowHeight = 34;
-  const tableWidth = colWidths.reduce((s, v) => s + v, 0);
-  const headers = ['Hào', 'Dòng', 'T/Ứ', 'Lục Thân', 'Can Chi', 'Lục Thú'];
-  let svg = '';
-
-  svg += `<rect x="${x}" y="${y}" width="${tableWidth}" height="42" fill="#fff1cc" stroke="#d9c99c"/>`;
-  svg += `<text x="${x + tableWidth / 2}" y="${y + 28}" text-anchor="middle" font-size="21" font-weight="800" fill="#7c4300">${escapeXml(title)}</text>`;
-
-  let headerY = y + 42;
-  let cx = x;
-  headers.forEach((h, i) => {
-    svg += `<rect x="${cx}" y="${headerY}" width="${colWidths[i]}" height="${rowHeight}" fill="#fff8e5" stroke="#d9c99c"/>`;
-    svg += `<text x="${cx + colWidths[i] / 2}" y="${headerY + 23}" text-anchor="middle" font-size="16" font-weight="800" fill="#111">${escapeXml(h)}</text>`;
-    cx += colWidths[i];
-  });
-
-  [...details].reverse().forEach((item, ri) => {
-    const rowY = headerY + rowHeight * (ri + 1);
-    const rowColor = item.moving ? '#d71920' : '#111111';
-    const values = [item.lineNo, item.lineType === 'yang' ? '━━' : '━  ━', item.selfOrResponse, item.lucThan, item.canChi, item.lucThu];
-    cx = x;
-    values.forEach((v, ci) => {
-      svg += `<rect x="${cx}" y="${rowY}" width="${colWidths[ci]}" height="${rowHeight}" fill="#fffdf5" stroke="#d9c99c"/>`;
-      svg += `<text x="${cx + colWidths[ci] / 2}" y="${rowY + 23}" text-anchor="middle" font-size="15" fill="${rowColor}" font-weight="${item.moving ? '800' : '500'}">${escapeXml(v)}</text>`;
-      cx += colWidths[ci];
-    });
-  });
-
-  return svg;
-}
-
-export function buildManualChartSvg(state: ManualHexagramState): string {
-  const timeText = new Date().toLocaleString('vi-VN');
-  const width = 1280, height = 980;
-
-  return `
-<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <defs>
-    <pattern id="paper" width="80" height="80" patternUnits="userSpaceOnUse">
-      <path d="M0 80 C20 40 60 40 80 0" fill="none" stroke="#f1e8ce" stroke-width="1"/>
-      <path d="M0 0 C20 40 60 40 80 80" fill="none" stroke="#f6edd6" stroke-width="1"/>
-    </pattern>
-  </defs>
-  <rect width="${width}" height="${height}" rx="18" fill="#fffdf2"/>
-  <rect width="${width}" height="${height}" fill="url(#paper)" opacity=".75"/>
-  <text x="28" y="46" font-size="24" font-weight="900" fill="#b66b00" font-family="Arial, sans-serif">KINH DỊCH AI FREE</text>
-  <text x="28" y="80" font-size="19" fill="#111" font-family="Arial, sans-serif">Phương pháp lập quẻ: Lục Hào · Gieo đồng xu ngoài đời</text>
-  <text x="28" y="110" font-size="19" fill="#111" font-family="Arial, sans-serif">Việc cần xem: ${escapeXml(state.manualQuestion)}</text>
-  <text x="28" y="140" font-size="19" fill="#111" font-family="Arial, sans-serif">Thời gian: ${escapeXml(timeText)} · Thiên can ngày: ${escapeXml(state.dayStem)}</text>
-  <line x1="24" y1="165" x2="1256" y2="165" stroke="#aaa" stroke-width="2"/>
-  <text x="320" y="210" text-anchor="middle" font-size="30" font-weight="900" fill="#d71920" font-family="Arial, sans-serif">${escapeXml(state.primaryInfo.name.toUpperCase())}</text>
-  <text x="320" y="465" text-anchor="middle" font-size="21" font-weight="800" fill="#444" font-family="Arial, sans-serif">HỌ ${escapeXml((state.primaryInfo.palace ?? '').toUpperCase())} · ${escapeXml((state.primaryInfo.palaceStage ?? '').toUpperCase())}</text>
-  <g>${svgHexagram(240, 245, state.primaryLines, state.movingLines)}</g>
-  <text x="960" y="210" text-anchor="middle" font-size="30" font-weight="900" fill="#d71920" font-family="Arial, sans-serif">${escapeXml(state.changedInfo.name.toUpperCase())}</text>
-  <text x="960" y="465" text-anchor="middle" font-size="21" font-weight="800" fill="#444" font-family="Arial, sans-serif">HỌ ${escapeXml((state.changedInfo.palace ?? '').toUpperCase())} · ${escapeXml((state.changedInfo.palaceStage ?? '').toUpperCase())}</text>
-  <g>${svgHexagram(880, 245, state.changedLines)}</g>
-  <line x1="24" y1="498" x2="1256" y2="498" stroke="#ddd" stroke-width="2"/>
-  <text x="320" y="538" text-anchor="middle" font-size="24" font-weight="900" fill="#111" font-family="Arial, sans-serif">QUẺ CHÍNH · Số ${escapeXml(state.primaryInfo.no)}</text>
-  <text x="960" y="538" text-anchor="middle" font-size="24" font-weight="900" fill="#111" font-family="Arial, sans-serif">QUẺ BIẾN · Số ${escapeXml(state.changedInfo.no)}</text>
-  ${svgTable(48, 565, 'Lục hào quẻ chính', state.primaryDetails)}
-  ${svgTable(688, 565, 'Lục hào quẻ biến', state.changedDetails)}
-  <text x="28" y="945" font-size="17" fill="#555" font-family="Arial, sans-serif">Ghi chú: Bảng demo tính cung/họ, lục thân, can chi nạp giáp, lục thú theo thiên can ngày để hỗ trợ AI luận quẻ.</text>
-</svg>`.trim();
-}
-
-export function downloadFile(filename: string, content: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-export function downloadSvg(state: ManualHexagramState): void {
-  downloadFile('lap-que-luc-hao.svg', buildManualChartSvg(state), 'image/svg+xml;charset=utf-8');
-}
-
-export function downloadPng(state: ManualHexagramState): void {
-  const svg = buildManualChartSvg(state);
-  const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const img = new Image();
-
-  img.onload = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1280;
-    canvas.height = 980;
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#fffdf2';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0);
-    URL.revokeObjectURL(url);
-    const pngUrl = canvas.toDataURL('image/png');
-    const link = document.createElement('a');
-    link.href = pngUrl;
-    link.download = 'lap-que-luc-hao.png';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  };
-
-  img.onerror = () => {
-    URL.revokeObjectURL(url);
-    downloadSvg(state);
-  };
-
-  img.src = url;
 }

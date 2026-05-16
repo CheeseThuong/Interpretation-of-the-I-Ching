@@ -63,6 +63,18 @@ export interface HexagramLine {
 // ============================================================
 
 export type LineValue = 6 | 7 | 8 | 9;
+
+/** Thế / Ứng position for a palace stage */
+export type SelfResponsePosition = {
+  self: number;
+  response: number;
+};
+
+/** Fallback used when palace stage is unknown */
+export const DEFAULT_SELF_RESPONSE: SelfResponsePosition = {
+  self: 0,
+  response: 0,
+};
 export type LineType = 'yang' | 'yin';
 
 export interface CoinLineOption {
@@ -93,13 +105,20 @@ export interface ManualHexagramState {
   lineObjects: CoinLineOption[];
   primaryLines: LineType[];
   changedLines: LineType[];
+  /** Hào 2-3-4 (hạ) + hào 3-4-5 (thượng) — zero-indexed from primaryLines */
+  nuclearLines: LineType[];
   movingLines: number[];
   lower: Trigram;
   upper: Trigram;
   changedLower: Trigram;
   changedUpper: Trigram;
+  /** Hạ quái của quẻ hỗ (hào 2-3-4) */
+  nuclearLower: Trigram;
+  /** Thượng quái của quẻ hỗ (hào 3-4-5) */
+  nuclearUpper: Trigram;
   primaryInfo: Hexagram;
   changedInfo: Hexagram;
+  nuclearInfo: Hexagram;
   primaryDetails: LineDetail[];
   changedDetails: LineDetail[];
 }
