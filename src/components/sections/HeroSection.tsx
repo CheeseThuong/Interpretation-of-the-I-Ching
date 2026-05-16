@@ -7,7 +7,11 @@ const FIELDS = ['Công việc / học tập', 'Tình cảm', 'Tài chính', 'Gia
 const MOODS  = ['Bình tĩnh', 'Lo lắng', 'Đang vội', 'Phân vân', 'Tự tin'];
 const DEFAULT_Q = 'Có nên bắt đầu kế hoạch này trong tháng này không?';
 
-const HeroSection: React.FC = () => {
+interface HeroSectionProps {
+  onManualClick?: () => void;
+}
+
+const HeroSection: React.FC<HeroSectionProps> = ({ onManualClick }) => {
   const { computeReading } = useReading();
   const sample: ReadingResult = useMemo(
     () => computeReading(DEFAULT_Q, FIELDS[0], MOODS[0]),
@@ -20,7 +24,7 @@ const HeroSection: React.FC = () => {
       <div className="hero-glow" />
       <div className="container hero-grid">
         <div className="hero-content reveal">
-          <p className="eyebrow pill">✨ Luận quẻ miễn phí + AI decision helper</p>
+          <p className="eyebrow pill">Luận quẻ miễn phí · AI decision helper</p>
           <h1>Kinh Dịch AI cho người đang cần một góc nhìn rõ hơn.</h1>
           <p className="hero-text">
             Website kết hợp cấu trúc 64 quẻ, dữ liệu cổ bản, ngữ cảnh câu hỏi,
@@ -29,7 +33,17 @@ const HeroSection: React.FC = () => {
           </p>
           <div className="hero-actions">
             <a className="button primary-button" href="#reading">Gieo quẻ thử →</a>
-            <a className="button secondary-button" href="#coins">Nhập lục hào ngoài đời</a>
+            <button 
+              type="button"
+              className="button secondary-button" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onManualClick) onManualClick();
+              }}
+            >
+              Nhập lục hào ngoài đời
+            </button>
           </div>
         </div>
 

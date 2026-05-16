@@ -20,7 +20,7 @@ const ReadingSection: React.FC = () => {
   };
 
   return (
-    <section className="section section-anchor" id="reading">
+    <section className="section dark-section section-anchor" id="reading">
       <div className="container">
         <div className="section-title reveal">
           <p className="eyebrow">Tính năng 01</p>

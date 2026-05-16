@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 500">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#2a1b4d"/>
+      <stop offset="100%" stop-color="#05020a"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fdf4c8"/>
+      <stop offset="50%" stop-color="#d4af37"/>
+      <stop offset="100%" stop-color="#8c7322"/>
+    </linearGradient>
+  </defs>
+  <rect width="300" height="500" fill="url(#bg)"/>
+  <rect x="15" y="15" width="270" height="470" fill="none" stroke="url(#gold)" stroke-width="2"/>
+  <rect x="25" y="25" width="250" height="450" fill="none" stroke="url(#gold)" stroke-width="1" stroke-dasharray="5,5"/>
+  <circle cx="15" cy="15" r="4" fill="url(#gold)"/>
+  <circle cx="285" cy="15" r="4" fill="url(#gold)"/>
+  <circle cx="15" cy="485" r="4" fill="url(#gold)"/>
+  <circle cx="285" cy="485" r="4" fill="url(#gold)"/>
+  
+  <g transform="translate(150, 250)">
+    <!-- Wheel of Fortune: 8-spoke wheel with outer and inner rings -->
+    <circle cx="0" cy="0" r="70" fill="none" stroke="url(#gold)" stroke-width="6"/>
+    <circle cx="0" cy="0" r="50" fill="none" stroke="url(#gold)" stroke-width="2"/>
+    <circle cx="0" cy="0" r="20" fill="none" stroke="url(#gold)" stroke-width="4"/>
+    <circle cx="0" cy="0" r="8" fill="url(#gold)"/>
+    
+    <!-- Spokes -->
+    <line x1="0" y1="-70" x2="0" y2="70" stroke="url(#gold)" stroke-width="4"/>
+    <line x1="-70" y1="0" x2="70" y2="0" stroke="url(#gold)" stroke-width="4"/>
+    <line x1="-50" y1="-50" x2="50" y2="50" stroke="url(#gold)" stroke-width="4"/>
+    <line x1="-50" y1="50" x2="50" y2="-50" stroke="url(#gold)" stroke-width="4"/>
+    
+    <!-- Alchemical symbols placeholder (dots on outer rim) -->
+    <circle cx="0" cy="-60" r="3" fill="#fff"/>
+    <circle cx="0" cy="60" r="3" fill="#fff"/>
+    <circle cx="-60" cy="0" r="3" fill="#fff"/>
+    <circle cx="60" cy="0" r="3" fill="#fff"/>
+  </g>
+</svg>

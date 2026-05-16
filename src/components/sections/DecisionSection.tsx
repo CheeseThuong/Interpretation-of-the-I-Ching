@@ -87,7 +87,19 @@ const DecisionSection: React.FC = () => {
                 <p className="eyebrow">Gợi ý quyết định</p>
                 <h3 id="bestChoice">{results[0]?.choice ?? 'Nhập lựa chọn'}</h3>
               </div>
-              <span className="large-icon">🎲</span>
+              <div className="decision-glyph" aria-hidden="true">
+                <svg viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* Abstract decision / balance sigil */}
+                  <circle cx="14" cy="14" r="11" stroke="#d4af37" strokeWidth="1.2" opacity="0.6"/>
+                  <line x1="14" y1="3" x2="14" y2="25" stroke="#d4af37" strokeWidth="1.2"/>
+                  <line x1="3" y1="14" x2="25" y2="14" stroke="#d4af37" strokeWidth="1.2"/>
+                  <circle cx="14" cy="14" r="2.5" fill="#d4af37" opacity="0.9"/>
+                  <circle cx="14" cy="7" r="1.2" fill="#d4af37" opacity="0.5"/>
+                  <circle cx="14" cy="21" r="1.2" fill="#d4af37" opacity="0.5"/>
+                  <circle cx="7" cy="14" r="1.2" fill="#d4af37" opacity="0.5"/>
+                  <circle cx="21" cy="14" r="1.2" fill="#d4af37" opacity="0.5"/>
+                </svg>
+              </div>
             </div>
 
             <div className="score-list" id="scoreList">

@@ -98,6 +98,13 @@ export const galleryProjects: GalleryProject[] = [
     alt: 'Hình minh họa sổ nhật ký luận quẻ để lưu lịch sử câu hỏi',
     description: 'Lưu lịch sử câu hỏi để người dùng tự nhìn lại kết quả và quá trình ra quyết định.',
   },
+  {
+    title: 'Tarot AI Reading',
+    tag: 'Thấu thị',
+    image: '/assets/tarot-ai.svg',
+    alt: 'Hình minh họa trải bài Tarot kết hợp với trí tuệ nhân tạo',
+    description: 'Trải bài Tarot đa dạng chủ đề với sự hỗ trợ từ AI để giải mã các tầng nghĩa sâu xa gắn với câu hỏi thực tế.',
+  },
 ];
 
 // ============================================================

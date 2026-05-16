@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+.next/
 
 # Environment variables — never commit secrets
 .env
@@ -34,3 +35,6 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+
+.vercel
+.env*.local

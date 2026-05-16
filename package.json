@@ -11,7 +11,9 @@
     "typecheck": "tsc -b --noEmit",
     "test": "vitest",
     "test:run": "vitest run",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "download:tarot": "node scripts/download-tarot-dataset.mjs",
+    "validate:tarot": "node scripts/validate-tarot-dataset.mjs"
   },
   "dependencies": {
     "react": "^19.2.6",

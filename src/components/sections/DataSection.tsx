@@ -2,7 +2,7 @@ import React from 'react';
 import { dataSources } from '../../data/shared';
 
 const DataSection: React.FC = () => (
-  <section className="section section-anchor" id="data">
+  <section className="section dark-section section-anchor" id="data">
     <div className="container">
       <div className="section-title reveal">
         <p className="eyebrow">AI data layer</p>
@@ -27,17 +27,14 @@ const DataSection: React.FC = () => (
         <h3>Schema gợi ý cho database</h3>
         <div className="schema-grid">
           <div className="schema-card">
-            <span className="schema-icon">🗃️</span>
             <h4>hexagrams</h4>
             <p>id, king_wen_no, name_han, name_vi, pinyin, symbol, upper_trigram, lower_trigram, keywords, judgment.</p>
           </div>
           <div className="schema-card">
-            <span className="schema-icon">📜</span>
             <h4>lines</h4>
             <p>hexagram_id, line_no, line_value, original_text, translation_vi, modern_advice, warning, reflection_question.</p>
           </div>
           <div className="schema-card">
-            <span className="schema-icon">🧠</span>
             <h4>interpretation_cases</h4>
             <p>topic, user_context, hexagram_id, moving_lines, answer_style, helpful_score, user_feedback.</p>
           </div>

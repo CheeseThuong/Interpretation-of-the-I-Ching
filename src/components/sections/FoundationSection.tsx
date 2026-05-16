@@ -7,7 +7,7 @@ import { MOCK_BAT_TU_CHART } from '../../data/battu';
 // ── Five Elements card ─────────────────────────────────────────────────────────
 const FiveElementsPanel: React.FC = () => (
   <div className="found-panel">
-    <h3 className="found-panel-title">🜁 Ngũ Hành</h3>
+    <h3 className="found-panel-title">Ngũ Hành</h3>
     <div className="found-grid five-element-grid">
       {fiveElements.map((el) => (
         <div key={el.name} className="found-card" style={{ '--accent': el.color } as React.CSSProperties}>
@@ -29,7 +29,7 @@ const FiveElementsPanel: React.FC = () => (
 // ── Can Chi panel ──────────────────────────────────────────────────────────────
 const CanChiPanel: React.FC = () => (
   <div className="found-panel">
-    <h3 className="found-panel-title">☯ Can Chi</h3>
+    <h3 className="found-panel-title">Can Chi</h3>
     <div className="found-subgrid">
       <div>
         <p className="found-sublabel">Thiên Can (10)</p>
@@ -67,8 +67,8 @@ const BatTuPanel: React.FC = () => {
 
   return (
     <div className="found-panel">
-      <h3 className="found-panel-title">⊛ Bát Tự (Tứ Trụ)</h3>
-      <p className="found-note">⚠ Dữ liệu mẫu — thuật toán tính Bát Tự chính xác đang được phát triển.</p>
+      <h3 className="found-panel-title">Bát Tự (Tứ Trụ)</h3>
+      <p className="found-note">Dữ liệu mẫu — thuật toán tính Bát Tự chính xác đang được phát triển.</p>
       <div className="four-pillars-grid">
         {pillars.map(({ label, data }) => (
           <div key={label} className="pillar-card">
@@ -97,7 +97,7 @@ const BatTuPanel: React.FC = () => {
 // ── Tử Vi panel ──────────────────────────────────────────────────────────────
 const TuViPanel: React.FC = () => (
   <div className="found-panel">
-    <h3 className="found-panel-title">★ Tử Vi</h3>
+    <h3 className="found-panel-title">Tử Vi</h3>
     <div className="found-subgrid">
       <div>
         <p className="found-sublabel">12 Cung</p>

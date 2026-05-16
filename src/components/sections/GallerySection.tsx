@@ -3,6 +3,45 @@ import type { GalleryProject } from '../../types';
 import { galleryProjects } from '../../data/shared';
 import GalleryModal from '../ui/GalleryModal';
 
+// ── Fallback Motifs ───────────────────────────────────────────────────────────
+const FallbackMotif: React.FC<{ title: string }> = ({ title }) => {
+  if (title === 'AI Oracle Reading') {
+    return (
+      <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1.2">
+        <circle cx="50" cy="50" r="40" strokeDasharray="2 4" opacity="0.2" />
+        <path d="M35 38H65M35 46H48M52 46H65M35 54H65M35 62H48M52 62H65" strokeWidth="2.5" />
+        <text x="50" y="55" fontSize="14" fill="currentColor" textAnchor="middle" opacity="0.4" style={{fontFamily: 'serif'}}>易</text>
+      </svg>
+    );
+  }
+  if (title === 'Manual Coin Casting') {
+    return (
+      <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1.2">
+        <circle cx="32" cy="42" r="10" />
+        <circle cx="50" cy="42" r="10" />
+        <circle cx="68" cy="42" r="10" />
+        <path d="M35 65H65M35 72H48M52 72H65M35 79H65" strokeWidth="2" opacity="0.5" />
+      </svg>
+    );
+  }
+  if (title.includes('Tarot')) {
+    return (
+      <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1.2">
+        <rect x="35" y="25" width="30" height="50" rx="2" strokeWidth="1.5" />
+        <circle cx="50" cy="50" r="8" strokeDasharray="2 2" />
+        <path d="M45 40 L55 60 M55 40 L45 60" strokeWidth="1" opacity="0.4" />
+      </svg>
+    );
+  }
+  return (
+    <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1">
+      <circle cx="50" cy="50" r="30" strokeDasharray="4 4" opacity="0.2" />
+      <circle cx="50" cy="50" r="18" opacity="0.4" />
+      <path d="M42 50H58M50 42V58" strokeWidth="0.5" opacity="0.3" />
+    </svg>
+  );
+};
+
 // ── Project card ───────────────────────────────────────────────────────────────
 interface ProjectCardProps {
   project: GalleryProject;
@@ -11,6 +50,7 @@ interface ProjectCardProps {
 
 const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   return (
     <button
@@ -18,15 +58,19 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) => {
       className="project-card"
       onClick={() => onClick(project)}
     >
-      <div className={`project-image image-loader${imgLoaded ? ' loaded' : ''}`}>
-        <img
-          src={project.image}
-          alt={project.alt}
-          loading="lazy"
-          draggable={false}
-          onLoad={() => setImgLoaded(true)}
-          onError={() => setImgLoaded(true)}
-        />
+      <div className={`project-image image-loader${imgLoaded || hasError ? ' loaded' : ''}`}>
+        {!hasError ? (
+          <img
+            src={project.image}
+            alt={project.alt}
+            loading="lazy"
+            draggable={false}
+            onLoad={() => setImgLoaded(true)}
+            onError={() => setHasError(true)}
+          />
+        ) : (
+          <FallbackMotif title={project.title} />
+        )}
         <div className="project-overlay">
           <div>
             <span className="data-badge">{project.tag}</span>
@@ -84,15 +128,15 @@ const GallerySection: React.FC = () => {
   }, []);
 
   return (
-    <section className="section white-section section-anchor" id="gallery">
+    <section className="section dark-section section-anchor" id="gallery">
       <div className="container">
-        <div className="section-title reveal">
-          <p className="eyebrow">Interaction demo</p>
-          <h2>Gallery có drag-to-scroll, hover overlay và modal</h2>
-          <p>Kéo ngang bằng chuột trên desktop hoặc vuốt trên mobile. Hover vào card để thấy ảnh zoom nhẹ và overlay hiện tên dự án.</p>
+        <div className="section-title reveal light-title">
+          <p className="eyebrow">Hành Trình Khám Phá</p>
+          <h2>Khám Phá Các Tính Năng</h2>
+          <p>Trải nghiệm hệ sinh thái tâm linh kết hợp giữa trí tuệ cổ xưa và công nghệ AI hiện đại.</p>
         </div>
 
-        <div className="drag-hint reveal">🖱️ Kéo ngang gallery, bấm vào card để mở modal chi tiết.</div>
+        <div className="drag-hint reveal">Kéo ngang để khám phá • Bấm để xem chi tiết</div>
 
         <div
           className="gallery-track reveal"

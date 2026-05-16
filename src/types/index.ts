@@ -99,6 +99,24 @@ export interface LineDetail {
 // MANUAL HEXAGRAM STATE
 // ============================================================
 
+export interface CastingMetadata {
+  question: string;
+  topic: string;
+  notes?: string;
+  gregorianDate: string;
+  localTime: string;
+  timezone: string;
+  manualOverride: boolean;
+  
+  // Advanced Fields Placeholders
+  lunarDate?: string;
+  dayCanChi?: string;
+  hourCanChi?: string;
+  solarTerm?: string;
+  monthBranch?: string;
+  voidBranch?: string;
+}
+
 export interface ManualHexagramState {
   dayStem: string;
   manualQuestion: string;

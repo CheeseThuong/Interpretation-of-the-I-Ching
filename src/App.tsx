@@ -1,58 +1,82 @@
-import React from 'react';
-import Header from './components/Header';
+import React, { useState } from 'react';
+import Header, { type TabType } from './components/Header';
 import HeroSection from './components/sections/HeroSection';
-import ReadingSection from './components/sections/ReadingSection';
-import CoinSection from './components/sections/CoinSection';
+import KinhDichPage from './components/KinhDichPage';
+import TarotSection from './components/sections/TarotSection';
 import DecisionSection from './components/sections/DecisionSection';
-// import DataSection from './components/sections/DataSection';
-import FoundationSection from './components/sections/FoundationSection';
 import GallerySection from './components/sections/GallerySection';
 import Footer from './components/Footer';
-import { useScrollReveal, useActiveNav } from './hooks/useScrollEffects';
+import { useScrollReveal } from './hooks/useScrollEffects';
 
 const App: React.FC = () => {
   useScrollReveal();
-  useActiveNav();
+  const [activeTab, setActiveTab] = useState<TabType>('home');
+  const [kinhDichMode, setKinhDichMode] = useState<'casting' | 'manual' | 'ai-reading'>('casting');
+
+  // Handle URL query parameters for deep-linking
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+    if (mode === 'manual') {
+      setKinhDichMode('manual');
+      setActiveTab('kinhdich');
+    } else if (mode === 'ai-reading') {
+      setKinhDichMode('ai-reading');
+      setActiveTab('kinhdich');
+    }
+  }, []);
+
+  const handleManualClick = () => {
+    setKinhDichMode('manual');
+    setActiveTab('kinhdich');
+    // Update URL without reloading
+    window.history.pushState({}, '', '?mode=manual');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <>
-      <Header />
+      <Header activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      <main>
-        <HeroSection />
-        <ReadingSection />
-        <CoinSection />
-        <DecisionSection />
-        {/* <DataSection /> */}
-        <FoundationSection />
-        <GallerySection />
+      <main style={{ minHeight: '80vh' }}>
+        {activeTab === 'home' && (
+          <div className="fade-in">
+            <HeroSection onManualClick={handleManualClick} />
+            <GallerySection />
+          </div>
+        )}
 
-        {/* UI checklist */}
-        {/* <section className="section">
-          <div className="container">
-            <div className="section-title reveal">
-              <p className="eyebrow">UI/UX checklist</p>
-              <h2>Các tiêu chuẩn đã thêm vào prototype</h2>
-              <p>
-                Responsive desktop/tablet/mobile, sticky navigation, hamburger menu,
-                focus state, alt text, image loading placeholder, scroll reveal,
-                smooth scroll và modal animation.
-              </p>
+        {activeTab === 'kinhdich' && (
+          <KinhDichPage defaultMode={kinhDichMode} onModeChange={setKinhDichMode} />
+        )}
+
+        {activeTab === 'tarot' && (
+          <div className="fade-in">
+            <div className="tab-header section dark-section" style={{ paddingBottom: '0' }}>
+              <div className="container">
+                <div className="section-title reveal light-title">
+                  <h2>Tarot & Quyết Định</h2>
+                  <p>Các trải bài Tarot và công cụ hỗ trợ quyết định.</p>
+                </div>
+              </div>
             </div>
-            <div className="checklist-grid">
-              {[
-                '✅ Responsive layout',
-                '✅ Sticky header + mobile menu',
-                '✅ Scroll reveal animation',
-                '✅ Active navigation state',
-                '✅ Image loading placeholder',
-                '✅ Accessibility cơ bản',
-              ].map((item) => (
-                <div key={item} className="check-card reveal">{item}</div>
-              ))}
+            <TarotSection />
+            <DecisionSection />
+          </div>
+        )}
+
+        {activeTab === 'journal' && (
+          <div className="fade-in">
+            <div className="tab-header section dark-section">
+              <div className="container">
+                <div className="section-title reveal light-title">
+                  <h2>Nhật ký Tâm linh</h2>
+                  <p>Lịch sử các lần gieo quẻ và trải bài của bạn (Sắp ra mắt).</p>
+                </div>
+              </div>
             </div>
           </div>
-        </section> */}
+        )}
       </main>
 
       <Footer />
