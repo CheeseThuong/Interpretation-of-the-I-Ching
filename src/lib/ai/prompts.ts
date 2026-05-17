@@ -268,7 +268,18 @@ export function buildTarotReadingPrompt(
     }>;
     timestamp: string;
     userNotes?: string;
-    synthesisContext?: string; // optional local synthesis summary
+    synthesisContext?: string;
+    zodiacLens?: {
+      sign: string;
+      viName: string;
+      element: string;
+      modality: string;
+      personalizationSummary: string;
+      psychologicalTendency: string;
+      decisionStyle: string;
+      adviceStyle: string;
+      riskNote: string;
+    };
   },
   referenceContext = ''
 ): string {
@@ -429,6 +440,21 @@ BỐI CẢNH CÂU HỎI (pre-classification — hãy tự kiểm tra và điều
 - riskLevel: ${preCtx.riskLevel}
 - requiredLens: ${preCtx.requiredLens.length > 0 ? preCtx.requiredLens.join(', ') : 'Không có (general guidance)'}
 ━━━━━━━━━━━━━━━━━━━━━━━━
+${data.zodiacLens ? `
+CUNG HOÀNG ĐẠO — LĂNG KÍNH CÁ NHÂN HÓA (không phải định mệnh):
+- Cung: ${data.zodiacLens.sign} (${data.zodiacLens.viName}) | Nguyên tố: ${data.zodiacLens.element} | Phương thức: ${data.zodiacLens.modality}
+- Xu hướng tâm lý liên quan đến câu hỏi: ${data.zodiacLens.psychologicalTendency}
+- Phong cách quyết định: ${data.zodiacLens.decisionStyle}
+- Lưu ý rủi ro theo cung: ${data.zodiacLens.riskNote}
+- Phong cách lời khuyên phù hợp: ${data.zodiacLens.adviceStyle}
+
+QUY TẮC CUNG HOÀNG ĐẠO:
+- Cung chỉ là LĂNG KÍNH cá nhân hóa, không phải định mệnh.
+- KHÔNG nói "Đây là vì bạn là [cung]..." hay "[cung] luôn luôn..."
+- NÊN nói "Với xu hướng của cung ${data.zodiacLens.viName}, bạn có thể dễ..."
+- Mọi nhận xét cung PHẢI kết nối trực tiếp vào lá bài và câu hỏi.
+- Zodiac cá nhân hóa lời khuyên, không thay thế luận giải Tarot.
+` : ''}
 ${loveSpecificLayer ? '\n' + loveSpecificLayer + '\n' : ''}${decisionSpecificLayer ? '\n' + decisionSpecificLayer + '\n' : ''}${dailySpreadLayer ? '\n' + dailySpreadLayer + '\n' : ''}${fiveCardLayer ? '\n' + fiveCardLayer + '\n' : ''}${data.synthesisContext ? `
 TỔNG HỢP CỤC BỘ (từ hệ thống — dùng làm cầu nối biểu tượng → diễn giải):
 ${data.synthesisContext}
@@ -488,6 +514,17 @@ YÊU CẦU ĐẦU RA — Chỉ trả về JSON hợp lệ, không có markdown, 
       }
     ]
   },
+  ${data.zodiacLens ? `"zodiacContext": {
+    "birthDate": "",
+    "zodiacSign": "${data.zodiacLens.sign}",
+    "viName": "${data.zodiacLens.viName}",
+    "element": "${data.zodiacLens.element}",
+    "modality": "${data.zodiacLens.modality}",
+    "personalizationLens": "${data.zodiacLens.personalizationSummary}",
+    "psychologicalTendency": "Mô tả xu hướng tâm lý của người dùng liên quan đến câu hỏi này dựa trên cung và lá bài.",
+    "decisionStyle": "${data.zodiacLens.decisionStyle}",
+    "adviceStyle": "${data.zodiacLens.adviceStyle}"
+  },` : ''}
   "referenceUsed": [],
   "finalMessage": "Thông điệp kết thúc theo giọng điệu ${data.readingTone} — ngắn gọn, ý nghĩa, bằng tiếng Việt."
 }

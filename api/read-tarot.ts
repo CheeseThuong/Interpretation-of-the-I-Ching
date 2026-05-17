@@ -1,5 +1,6 @@
 import { buildTarotReadingPrompt } from '../src/lib/ai/prompts';
 import { prepareTarotReferenceContext } from '../src/lib/ai/tarotReference';
+import { prepareZodiacReferenceContext } from '../src/lib/astrology/zodiacReference';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -18,28 +19,37 @@ export default async function handler(req: any, res: any) {
       return res.status(500).json({ error: 'Server is missing AI_API_KEY environment variable' });
     }
 
-    // Build server-side reference context from the Dendory/tarot dataset.
-    // Falls back to empty string if CSV is missing — never crashes.
-    const cardNames: string[] = (data.drawnCards as Array<{ name: string }>).map(
-      (c) => c.name
-    );
+    // Tarot dataset reference (Dendory)
+    const cardNames: string[] = (data.drawnCards as Array<{ name: string }>).map(c => c.name);
     const referenceContext = prepareTarotReferenceContext(cardNames, 3);
 
-    const prompt = buildTarotReadingPrompt(data, referenceContext);
+    // Zodiac dataset reference — optional, fails silently if missing
+    let zodiacReferenceContext = '';
+    if (data.zodiacLens?.sign) {
+      zodiacReferenceContext = prepareZodiacReferenceContext(data.zodiacLens.sign, undefined, 2);
+    }
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          response_mime_type: "application/json",
-          temperature: 0.7,
-          topP: 0.8,
-          topK: 40
-        }
-      })
-    });
+    // Combine reference contexts
+    const combinedReference = [referenceContext, zodiacReferenceContext].filter(Boolean).join('\n\n');
+
+    const prompt = buildTarotReadingPrompt(data, combinedReference);
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            response_mime_type: 'application/json',
+            temperature: 0.7,
+            topP: 0.8,
+            topK: 40,
+          },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -48,15 +58,19 @@ export default async function handler(req: any, res: any) {
     }
 
     const aiData = await response.json();
-    
+
     if (!aiData.candidates?.[0]?.content?.parts?.[0]?.text) {
       throw new Error('AI response is empty or malformed');
     }
 
     const resultText = aiData.candidates[0].content.parts[0].text;
-    
+
     try {
       const structuredResult = JSON.parse(resultText);
+      // Attach birth date if provided (it was not in the AI output schema to avoid PII in AI)
+      if (data.birthDate && structuredResult.zodiacContext) {
+        structuredResult.zodiacContext.birthDate = data.birthDate;
+      }
       return res.status(200).json(structuredResult);
     } catch (parseError) {
       console.error('Failed to parse AI JSON:', resultText);

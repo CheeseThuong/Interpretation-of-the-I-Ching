@@ -9,6 +9,8 @@ import { createFreshTarotDeck, shuffleTarotDeck, drawTarotCards } from '../../ut
 import { synthesizeTarotReading } from '../../lib/readings/synthesis';
 import type { TarotSynthesis } from '../../lib/readings/synthesis';
 import { TarotSynthesisDisplay } from '../ui/ReadingSynthesis';
+import { getZodiacSignFromDate, buildZodiacLens } from '../../lib/astrology/zodiac';
+import type { ZodiacLens } from '../../lib/astrology/zodiac';
 
 type TarotStep = 'select-spread' | 'shuffle' | 'draw' | 'result';
 
@@ -33,6 +35,10 @@ const TarotSection: React.FC = () => {
 
   // Synthesis state
   const [synthesis, setSynthesis] = useState<TarotSynthesis | null>(null);
+
+  // Zodiac state
+  const [birthDate, setBirthDate] = useState('');
+  const [zodiacLens, setZodiacLens] = useState<ZodiacLens | null>(null);
 
   const TONES: ReadingTone[] = [
     'Gentle and healing',
@@ -119,9 +125,11 @@ const TarotSection: React.FC = () => {
         meaningReversed: dc.card.meaningReversed
       })),
       timestamp: new Date().toLocaleString('vi-VN'),
+      birthDate: birthDate || undefined,
       synthesisContext: synthesis
-        ? `Tổng quan: ${synthesis.overview}\nMối liên hệ: ${synthesis.patternSummary}\nTín hiệu: ${synthesis.mainSignal}\nĐiểm nổi bật: ${synthesis.keyTension}\nLời khuyên tổng hợp: ${synthesis.keyAdvice}\nTóm tắt: ${synthesis.oneLineSummary}`
-        : undefined
+        ? `Tong quan: ${synthesis.overview}\nMoi lien he: ${synthesis.patternSummary}\nTin hieu: ${synthesis.mainSignal}\nDiem noi bat: ${synthesis.keyTension}\nLoi khuyen tong hop: ${synthesis.keyAdvice}\nTom tat: ${synthesis.oneLineSummary}`
+        : undefined,
+      zodiacLens: zodiacLens ?? undefined,
     };
 
     try {
@@ -151,13 +159,15 @@ const TarotSection: React.FC = () => {
     setStep('select-spread');
     setQuestion('');
     setSelectedSpread(null);
-    setDeck([]);              // clear stale deck
+    setDeck([]);
     setDrawnCards([]);
     setRevealedIndices([]);
     setIsRevealing(false);
     setAiState('idle');
     setAiResponse(null);
     setSynthesis(null);
+    setBirthDate('');
+    setZodiacLens(null);
   };
 
   return (
@@ -186,14 +196,54 @@ const TarotSection: React.FC = () => {
         {step === 'shuffle' && selectedSpread && (
           <div className="fade-in" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
             <h3 style={{ color: 'var(--amber)', marginBottom: '30px', fontSize: '1.8rem', fontFamily: '"Playfair Display", serif' }}>{selectedSpread.name}</h3>
-            
-            <textarea 
+
+            <textarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Tập trung ý niệm và nhập câu hỏi của bạn..."
+              placeholder="Tap trung y niem va nhap cau hoi cua ban..."
               rows={3}
-              style={{ width: '100%', maxWidth: '500px', marginBottom: '30px', background: 'rgba(10,5,20,0.6)', color: '#fff', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '15px', fontSize: '1rem', backdropFilter: 'blur(10px)' }}
+              style={{ width: '100%', maxWidth: '500px', marginBottom: '20px', background: 'rgba(10,5,20,0.6)', color: '#fff', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '15px', fontSize: '1rem', backdropFilter: 'blur(10px)' }}
             />
+
+            {/* Birth date — optional, for zodiac personalization */}
+            <div style={{ maxWidth: '500px', margin: '0 auto 28px', textAlign: 'left' }}>
+              <label htmlFor="tarot-birth-date" style={{ display: 'block', color: 'rgba(212,175,55,0.8)', fontSize: '0.85rem', marginBottom: '6px', letterSpacing: '0.5px' }}>
+                Ngay sinh cua ban
+              </label>
+              <input
+                id="tarot-birth-date"
+                type="date"
+                value={birthDate}
+                max={new Date().toISOString().split('T')[0]}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setBirthDate(val);
+                  if (val) {
+                    const sign = getZodiacSignFromDate(val);
+                    if (sign) {
+                      // Build lens with question-type context for more relevant personalization
+                      import('../../lib/ai/prompts').then(({ classifyQuestionContext }) => {
+                        const ctx = classifyQuestionContext(question || '');
+                        setZodiacLens(buildZodiacLens(sign, ctx.questionType));
+                      }).catch(() => setZodiacLens(buildZodiacLens(sign)));
+                    } else {
+                      setZodiacLens(null);
+                    }
+                  } else {
+                    setZodiacLens(null);
+                  }
+                }}
+                style={{ width: '100%', background: 'rgba(10,5,20,0.6)', color: '#fff', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '10px', padding: '10px 14px', fontSize: '0.95rem' }}
+              />
+              <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.38)' }}>
+                Dung de xac dinh cung hoang dao va ca nhan hoa luan giai. Ban co the bo qua neu khong muon.
+              </p>
+              {zodiacLens && (
+                <div style={{ marginTop: '10px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', fontSize: '0.82rem', color: 'rgba(167,139,250,0.9)' }}>
+                  Cung {zodiacLens.viName} ({zodiacLens.sign}) — {zodiacLens.element}
+                </div>
+              )}
+            </div>
 
             <div className="deck-area">
               <div className={`tarot-deck-stack ${isShuffling ? 'shuffling' : ''}`}>

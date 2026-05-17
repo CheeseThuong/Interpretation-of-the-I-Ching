@@ -43,6 +43,20 @@ export interface QuestionContext {
   riskLevel: 'low' | 'medium' | 'high';
   answerMode: 'decision_guidance' | 'emotional_reading' | 'risk_assessment' | 'daily_guidance' | 'reflection';
   requiredLens: string[];
+  psychologicalNeed?: string;
+  emotionalStateHypothesis?: string;
+}
+
+export interface ZodiacContext {
+  birthDate?: string;
+  zodiacSign?: string;
+  viName?: string;
+  element?: string;
+  modality?: string;
+  personalizationLens?: string;
+  psychologicalTendency?: string;
+  decisionStyle?: string;
+  adviceStyle?: string;
 }
 
 export interface TarotCardReading {
@@ -77,6 +91,19 @@ export interface UnifiedAIReadingResponse {
   practicalAdvice: string[];
   thingsToAvoid: string[];
   riskNotes: string[];
+  zodiacContext?: ZodiacContext;
+  psychologicalInterpretation?: string;
+  positionAnalyses?: Array<{
+    positionLabel: string;
+    positionFunction: string;
+    cardName: string;
+    orientation: string;
+    meaningInThisPosition: string;
+    meaningForUserQuestion: string;
+    zodiacPersonalization?: string;
+    psychologicalInsight: string;
+    practicalSignal: string;
+  }>;
   
   // Dynamic symbol details based on the reading type
   symbolDetails: {

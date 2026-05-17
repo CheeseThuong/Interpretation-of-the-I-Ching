@@ -353,6 +353,48 @@ const StandardLayout: React.FC<{ r: UnifiedAIReadingResponse }> = ({ r }) => {
   );
 };
 
+/* ── ZODIAC PANEL (optional — shown only when zodiacContext is present) ── */
+const ELEMENT_LABEL: Record<string, string> = {
+  fire: 'Lửa', earth: 'Đất', air: 'Khí', water: 'Nước',
+};
+const MODALITY_LABEL: Record<string, string> = {
+  cardinal: 'Khởi động', fixed: 'Cố định', mutable: 'Biến đổi',
+};
+
+const ZodiacPanel: React.FC<{ z: NonNullable<UnifiedAIReadingResponse['zodiacContext']> }> = ({ z }) => {
+  if (!z.zodiacSign) return null;
+  return (
+    <div style={{ marginBottom:'28px', padding:'22px 26px', borderRadius:'14px', background:'rgba(167,139,250,0.06)', border:'1px solid rgba(167,139,250,0.22)', backdropFilter:'blur(8px)' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'16px', flexWrap:'wrap' }}>
+        <div style={{ fontSize:'0.68rem', textTransform:'uppercase', letterSpacing:'1.5px', color:'rgba(167,139,250,0.7)', flexShrink:0 }}>
+          Ca Nhan Hoa Theo Cung
+        </div>
+        <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
+          <span style={{ padding:'3px 12px', borderRadius:'20px', background:'rgba(167,139,250,0.15)', color:'#a78bfa', fontSize:'0.8rem', fontWeight:700 }}>
+            {z.viName} ({z.zodiacSign})
+          </span>
+          {z.element && (
+            <span style={{ padding:'3px 10px', borderRadius:'20px', background:'rgba(255,255,255,0.05)', color:'rgba(255,255,255,0.6)', fontSize:'0.75rem', border:'1px solid rgba(255,255,255,0.1)' }}>
+              {ELEMENT_LABEL[z.element] ?? z.element}
+            </span>
+          )}
+          {z.modality && (
+            <span style={{ padding:'3px 10px', borderRadius:'20px', background:'rgba(255,255,255,0.05)', color:'rgba(255,255,255,0.6)', fontSize:'0.75rem', border:'1px solid rgba(255,255,255,0.1)' }}>
+              {MODALITY_LABEL[z.modality] ?? z.modality}
+            </span>
+          )}
+        </div>
+      </div>
+      {z.personalizationLens && (
+        <p style={{ margin:'0 0 10px', fontSize:'0.88rem', lineHeight:1.65, color:'rgba(255,255,255,0.8)', fontStyle:'italic' }}>{z.personalizationLens}</p>
+      )}
+      {z.psychologicalTendency && (
+        <p style={{ margin:0, fontSize:'0.88rem', lineHeight:1.65, color:'rgba(167,139,250,0.85)' }}>{z.psychologicalTendency}</p>
+      )}
+    </div>
+  );
+};
+
 /* ── ROOT component ─────────────────────────────────────────────── */
 const AIReadingDisplay: React.FC<Props> = ({ response }) => {
   const isDaily    = response.questionContext?.answerMode === 'daily_guidance';
@@ -364,11 +406,16 @@ const AIReadingDisplay: React.FC<Props> = ({ response }) => {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'14px' }}>
           <div className="line-decorator" />
           <h3 style={{ color:'var(--gold)', fontSize:'1.7rem', margin:0, fontFamily:'"Playfair Display",serif' }}>
-            Thông Điệp Từ AI Oracle
+            Thong Diep Tu AI Oracle
           </h3>
           <div className="line-decorator" />
         </div>
       </div>
+
+      {/* Zodiac panel — only when AI returned zodiacContext with a sign */}
+      {response.zodiacContext?.zodiacSign && (
+        <ZodiacPanel z={response.zodiacContext} />
+      )}
 
       {isDaily    && <DailyLayout    r={response} />}
       {isFiveCard && <FiveCardLayout r={response} />}
