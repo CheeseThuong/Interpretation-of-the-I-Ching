@@ -48,6 +48,15 @@ const TarotSection: React.FC = () => {
     'Gen Z spiritual bestie'
   ];
 
+  // Vietnamese display labels for tones — internal values stay as English enum
+  const TONE_VI: Record<ReadingTone, string> = {
+    'Gentle and healing':    'Diụ dàng và chữa lành',
+    'Direct and honest':     'Thẳng thắn và chân thật',
+    'Mystical and poetic':   'Huyền bí và thi vị',
+    'Practical and logical': 'Thực tế và logic',
+    'Gen Z spiritual bestie':'Bạn tâm linh kiểu Gen Z',
+  };
+
   const handleSelectSpread = (spread: TarotSpread) => {
     setSelectedSpread(spread);
     // Start with a fresh full 78-card deck (not shuffled yet — shuffle happens on handleShuffle)
@@ -200,28 +209,40 @@ const TarotSection: React.FC = () => {
             <textarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Tap trung y niem va nhap cau hoi cua ban..."
+              placeholder="Tập trung ý niệm và nhập câu hỏi của bạn..."
               rows={3}
-              style={{ width: '100%', maxWidth: '500px', marginBottom: '20px', background: 'rgba(10,5,20,0.6)', color: '#fff', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '15px', fontSize: '1rem', backdropFilter: 'blur(10px)' }}
+              style={{ width: '100%', maxWidth: '500px', marginBottom: '20px', background: 'rgba(10,5,20,0.6)', color: '#fff', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '15px', fontSize: '1rem', backdropFilter: 'blur(10px)', resize: 'vertical' }}
             />
 
-            {/* Birth date — optional, for zodiac personalization */}
+            {/* Ngày sinh — tuỳ chọn, dùng để xác định cung hoàng đạo */}
             <div style={{ maxWidth: '500px', margin: '0 auto 28px', textAlign: 'left' }}>
-              <label htmlFor="tarot-birth-date" style={{ display: 'block', color: 'rgba(212,175,55,0.8)', fontSize: '0.85rem', marginBottom: '6px', letterSpacing: '0.5px' }}>
-                Ngay sinh cua ban
+              <label
+                htmlFor="tarot-birth-date"
+                style={{ display: 'block', color: 'rgba(212,175,55,0.85)', fontSize: '0.85rem', marginBottom: '6px', letterSpacing: '0.5px' }}
+              >
+                Ngày sinh của bạn
               </label>
+              {/* Controlled dd/mm/yyyy input — avoids browser locale differences with type="date" */}
               <input
                 id="tarot-birth-date"
-                type="date"
+                type="text"
+                inputMode="numeric"
+                placeholder="dd/mm/yyyy"
+                maxLength={10}
                 value={birthDate}
-                max={new Date().toISOString().split('T')[0]}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  setBirthDate(val);
-                  if (val) {
-                    const sign = getZodiacSignFromDate(val);
+                  // Auto-insert slashes: 2 digits day, slash, 2 digits month, slash, 4 digits year
+                  let v = e.target.value.replace(/[^\d]/g, '');
+                  if (v.length > 2) v = v.slice(0, 2) + '/' + v.slice(2);
+                  if (v.length > 5) v = v.slice(0, 5) + '/' + v.slice(5);
+                  if (v.length > 10) v = v.slice(0, 10);
+                  setBirthDate(v);
+                  // Parse dd/mm/yyyy → yyyy-mm-dd for zodiac calculation
+                  const parts = v.split('/');
+                  if (parts.length === 3 && parts[2].length === 4) {
+                    const isoDate = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+                    const sign = getZodiacSignFromDate(isoDate);
                     if (sign) {
-                      // Build lens with question-type context for more relevant personalization
                       import('../../lib/ai/prompts').then(({ classifyQuestionContext }) => {
                         const ctx = classifyQuestionContext(question || '');
                         setZodiacLens(buildZodiacLens(sign, ctx.questionType));
@@ -233,14 +254,24 @@ const TarotSection: React.FC = () => {
                     setZodiacLens(null);
                   }
                 }}
-                style={{ width: '100%', background: 'rgba(10,5,20,0.6)', color: '#fff', border: '1px solid rgba(212,175,55,0.25)', borderRadius: '10px', padding: '10px 14px', fontSize: '0.95rem' }}
+                style={{
+                  width: '100%',
+                  background: 'rgba(10,5,20,0.6)',
+                  color: '#fff',
+                  border: '1px solid rgba(212,175,55,0.25)',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  fontSize: '0.95rem',
+                  letterSpacing: '1px',
+                }}
               />
-              <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.38)' }}>
-                Dung de xac dinh cung hoang dao va ca nhan hoa luan giai. Ban co the bo qua neu khong muon.
+              <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+                Dùng để xác định cung hoàng đạo và cá nhân hóa luận giải. Bạn có thể bỏ qua nếu không muốn.
               </p>
               {zodiacLens && (
-                <div style={{ marginTop: '10px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', fontSize: '0.82rem', color: 'rgba(167,139,250,0.9)' }}>
-                  Cung {zodiacLens.viName} ({zodiacLens.sign}) — {zodiacLens.element}
+                <div style={{ marginTop: '10px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', fontSize: '0.82rem', color: 'rgba(167,139,250,0.9)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>&#9885;</span>
+                  <span>Cung {zodiacLens.viName} ({zodiacLens.sign}) — {zodiacLens.element === 'fire' ? 'Lửa' : zodiacLens.element === 'earth' ? 'Đất' : zodiacLens.element === 'air' ? 'Khí' : 'Nước'}</span>
                 </div>
               )}
             </div>
@@ -329,13 +360,13 @@ const TarotSection: React.FC = () => {
         )}
 
         {step === 'result' && selectedSpread && (
-          <div className="fade-in">
+          <div className="fade-in" style={{ maxWidth: '960px', margin: '0 auto', width: '100%' }}>
             <div style={{ textAlign: 'center', marginBottom: '40px' }}>
               <h3 style={{ color: 'var(--amber)', fontSize: '2.2rem', fontFamily: '"Playfair Display", serif', marginBottom: '10px' }}>Thông Điệp Tarot</h3>
               {question && <p style={{ fontStyle: 'italic', fontSize: '1.2rem', color: 'rgba(255,255,255,0.8)' }}>"{question}"</p>}
             </div>
 
-            <div className="drawn-cards-container" style={{ margin: '0 0 60px' }}>
+            <div className="drawn-cards-container" style={{ margin: '0 auto 60px', justifyContent: 'center' }}>
               {drawnCards.map((dc, i) => {
                 const isRevealed = revealedIndices.includes(i);
                 return (
@@ -404,9 +435,14 @@ const TarotSection: React.FC = () => {
                       AI sẽ kết nối ý nghĩa của tất cả các lá bài trong trải bài của bạn để đưa ra thông điệp tổng hợp.
                     </p>
                     <div style={{ display: 'inline-block', textAlign: 'left', marginBottom: '20px' }}>
-                      <label htmlFor="tarotAiTone" style={{ color: 'var(--amber)' }}>Giọng điệu</label>
-                      <select id="tarotAiTone" value={aiTone} onChange={(e) => setAiTone(e.target.value as ReadingTone)}>
-                        {TONES.map(t => <option key={t} value={t}>{t}</option>)}
+                      <label htmlFor="tarotAiTone" style={{ display: 'block', color: 'var(--amber)', fontSize: '0.85rem', marginBottom: '6px' }}>Giọng điệu luận giải</label>
+                      <select
+                        id="tarotAiTone"
+                        value={aiTone}
+                        onChange={(e) => setAiTone(e.target.value as ReadingTone)}
+                        style={{ minWidth: '220px' }}
+                      >
+                        {TONES.map(t => <option key={t} value={t}>{TONE_VI[t]}</option>)}
                       </select>
                     </div>
                     <br />

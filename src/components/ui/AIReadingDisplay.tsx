@@ -367,7 +367,7 @@ const ZodiacPanel: React.FC<{ z: NonNullable<UnifiedAIReadingResponse['zodiacCon
     <div style={{ marginBottom:'28px', padding:'22px 26px', borderRadius:'14px', background:'rgba(167,139,250,0.06)', border:'1px solid rgba(167,139,250,0.22)', backdropFilter:'blur(8px)' }}>
       <div style={{ display:'flex', alignItems:'center', gap:'12px', marginBottom:'16px', flexWrap:'wrap' }}>
         <div style={{ fontSize:'0.68rem', textTransform:'uppercase', letterSpacing:'1.5px', color:'rgba(167,139,250,0.7)', flexShrink:0 }}>
-          Ca Nhan Hoa Theo Cung
+          Cá Nhân Hóa Theo Cung
         </div>
         <div style={{ display:'flex', gap:'8px', flexWrap:'wrap' }}>
           <span style={{ padding:'3px 12px', borderRadius:'20px', background:'rgba(167,139,250,0.15)', color:'#a78bfa', fontSize:'0.8rem', fontWeight:700 }}>
@@ -406,7 +406,7 @@ const AIReadingDisplay: React.FC<Props> = ({ response }) => {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'14px' }}>
           <div className="line-decorator" />
           <h3 style={{ color:'var(--gold)', fontSize:'1.7rem', margin:0, fontFamily:'"Playfair Display",serif' }}>
-            Thong Diep Tu AI Oracle
+            Thông Điệp Từ AI Oracle
           </h3>
           <div className="line-decorator" />
         </div>

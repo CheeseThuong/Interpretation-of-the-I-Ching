@@ -100,23 +100,23 @@ export const TarotSynthesisDisplay: React.FC<{ synthesis: TarotSynthesis }> = ({
       {/* Section 1: overview + signal */}
       <Wrap>
         <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'18px' }}>
-          <h4 style={{ margin:0, color:'var(--amber,#d4af37)', fontFamily:'"Playfair Display",serif', fontSize:'1.3rem' }}>Tong Hop Trai Bai</h4>
+          <h4 style={{ margin:0, color:'var(--amber,#d4af37)', fontFamily:'"Playfair Display",serif', fontSize:'1.3rem' }}>Tổng Hợp Trải Bài</h4>
           <div style={{ flex:1, height:'1px', background:'linear-gradient(90deg,rgba(212,175,55,0.4),transparent)' }} />
           <Badge s={synthesis.mainSignal} />
         </div>
 
-        <Lbl t="Tong quan" />
+        <Lbl t="Tổng quan" />
         <p style={{ margin:'0 0 14px', lineHeight:1.75, fontSize:'0.97rem', color:'rgba(255,255,255,0.88)' }}>{synthesis.overview}</p>
 
         <Div />
 
-        <Lbl t="Tom tat 1 dong" />
+        <Lbl t="Tóm tắt 1 dòng" />
         <p style={{ margin:'0 0 14px', fontStyle:'italic', color:'rgba(212,175,55,0.9)', fontSize:'0.97rem' }}>{synthesis.oneLineSummary}</p>
 
         {synthesis.combinedConclusion && (
           <>
             <Div />
-            <Lbl t="Ket luan tong hop" />
+            <Lbl t="Kết luận tổng hợp" />
             <p style={{ margin:0, lineHeight:1.78, fontSize:'0.95rem', color:'rgba(255,255,255,0.88)' }}>{synthesis.combinedConclusion}</p>
           </>
         )}
@@ -126,7 +126,7 @@ export const TarotSynthesisDisplay: React.FC<{ synthesis: TarotSynthesis }> = ({
       {hasFull && (
         <Wrap>
           <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'18px' }}>
-            <h4 style={{ margin:0, color:'var(--amber,#d4af37)', fontFamily:'"Playfair Display",serif', fontSize:'1.2rem' }}>Vai Tro Tung La</h4>
+            <h4 style={{ margin:0, color:'var(--amber,#d4af37)', fontFamily:'"Playfair Display",serif', fontSize:'1.2rem' }}>Vai Trò Từng Lá</h4>
             <div style={{ flex:1, height:'1px', background:'linear-gradient(90deg,rgba(212,175,55,0.3),transparent)' }} />
           </div>
           {synthesis.positionAnalyses.map((pa, i) => (
@@ -138,17 +138,17 @@ export const TarotSynthesisDisplay: React.FC<{ synthesis: TarotSynthesis }> = ({
       {/* Section 3: advice + tension */}
       <Wrap>
         <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'18px' }}>
-          <h4 style={{ margin:0, color:'var(--amber,#d4af37)', fontFamily:'"Playfair Display",serif', fontSize:'1.2rem' }}>Loi Khuyen Phu Hop</h4>
+          <h4 style={{ margin:0, color:'var(--amber,#d4af37)', fontFamily:'"Playfair Display",serif', fontSize:'1.2rem' }}>Lời Khuyên Phù Hợp</h4>
           <div style={{ flex:1, height:'1px', background:'linear-gradient(90deg,rgba(212,175,55,0.3),transparent)' }} />
         </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))', gap:'16px' }}>
           <div>
-            <Lbl t="Loi khuyen chinh" />
+            <Lbl t="Lời khuyên chính" />
             <p style={{ margin:0, fontSize:'0.93rem', lineHeight:1.7, color:'rgba(255,255,255,0.88)' }}>{synthesis.keyAdvice}</p>
           </div>
           <div>
-            <Lbl t="Diem can chu y / cang thang" />
+            <Lbl t="Điểm cần chú ý / căng thẳng" />
             <p style={{ margin:0, fontSize:'0.93rem', lineHeight:1.7, color:'rgba(255,255,255,0.82)' }}>{synthesis.keyTension}</p>
           </div>
         </div>
@@ -157,23 +157,23 @@ export const TarotSynthesisDisplay: React.FC<{ synthesis: TarotSynthesis }> = ({
   );
 };
 
-/* ── KINH DICH SYNTHESIS DISPLAY (unchanged) ── */
+/* ── KINH DICH SYNTHESIS DISPLAY ── */
 export const KinhDichSynthesisDisplay: React.FC<{ synthesis: KinhDichSynthesis }> = ({ synthesis }) => (
   <Wrap>
     <div style={{ display:'flex', alignItems:'center', gap:'14px', marginBottom:'18px' }}>
-      <h4 style={{ margin:0, color:'var(--amber,#d4af37)', fontFamily:'"Playfair Display",serif', fontSize:'1.3rem' }}>Tong Hop Que</h4>
+      <h4 style={{ margin:0, color:'var(--amber,#d4af37)', fontFamily:'"Playfair Display",serif', fontSize:'1.3rem' }}>Tổng Hợp Quẻ</h4>
       <div style={{ flex:1, height:'1px', background:'linear-gradient(90deg,rgba(212,175,55,0.4),transparent)' }} />
       <Badge s={synthesis.mainSignal} />
     </div>
 
-    <Lbl t="Tong quan" />
+    <Lbl t="Tổng quan" />
     <p style={{ margin:'0 0 14px', lineHeight:1.75, fontSize:'0.97rem', color:'rgba(255,255,255,0.88)' }}>{synthesis.overview}</p>
     <Div />
 
     {[
-      { label:'Que chinh — tinh huong hien tai', text:synthesis.primaryHexagramSummary, color:'rgba(212,175,55,0.5)' },
-      { label:'Hao dong — diem bien chuyen',    text:synthesis.movingLinesSummary,      color:'rgba(167,139,250,0.5)' },
-      { label:'Que bien — xu huong tiep theo',  text:synthesis.changedHexagramSummary,  color:'rgba(103,232,249,0.4)' },
+      { label:'Quẻ chính — tình huống hiện tại', text:synthesis.primaryHexagramSummary, color:'rgba(212,175,55,0.5)' },
+      { label:'Hào động — điểm biến chuyển',    text:synthesis.movingLinesSummary,      color:'rgba(167,139,250,0.5)' },
+      { label:'Quẻ biến — xu hướng tiếp theo',  text:synthesis.changedHexagramSummary,  color:'rgba(103,232,249,0.4)' },
     ].map(({ label, text, color }, i) => (
       <div key={i} style={{ padding:'12px 14px', borderRadius:'8px', background:'rgba(255,255,255,0.03)', borderLeft:`3px solid ${color}`, marginBottom:'12px' }}>
         <Lbl t={label} />
@@ -183,14 +183,14 @@ export const KinhDichSynthesisDisplay: React.FC<{ synthesis: KinhDichSynthesis }
 
     <Div />
     <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:'14px' }}>
-      <div><Lbl t="Tong hop xu huong" /><p style={{ margin:0, fontSize:'0.9rem', lineHeight:1.7, color:'rgba(255,255,255,0.82)' }}>{synthesis.patternSummary}</p></div>
-      <div><Lbl t="Diem can luu y" /><p style={{ margin:0, fontSize:'0.9rem', lineHeight:1.7, color:'rgba(255,255,255,0.82)' }}>{synthesis.keyTension}</p></div>
+      <div><Lbl t="Tổng hợp xu hướng" /><p style={{ margin:0, fontSize:'0.9rem', lineHeight:1.7, color:'rgba(255,255,255,0.82)' }}>{synthesis.patternSummary}</p></div>
+      <div><Lbl t="Điểm cần lưu ý" /><p style={{ margin:0, fontSize:'0.9rem', lineHeight:1.7, color:'rgba(255,255,255,0.82)' }}>{synthesis.keyTension}</p></div>
     </div>
     <Div />
-    <Lbl t="Loi khuyen tong hop" />
+    <Lbl t="Lời khuyên tổng hợp" />
     <p style={{ margin:'0 0 14px', fontSize:'0.93rem', lineHeight:1.7, color:'rgba(255,255,255,0.9)' }}>{synthesis.keyAdvice}</p>
     <div style={{ padding:'12px 16px', borderRadius:'8px', background:'rgba(212,175,55,0.07)', border:'1px solid rgba(212,175,55,0.2)' }}>
-      <Lbl t="Tom tat 1 dong" />
+      <Lbl t="Tóm tắt 1 dòng" />
       <p style={{ margin:0, fontStyle:'italic', color:'rgba(212,175,55,0.9)', fontSize:'0.95rem' }}>{synthesis.oneLineSummary}</p>
     </div>
   </Wrap>
