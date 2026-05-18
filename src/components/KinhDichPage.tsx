@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import '../styles/kinh-dich-vip.css';
 import InteractiveCoinSection from './sections/InteractiveCoinSection';
 import ReadingSection from './sections/ReadingSection';
 import FoundationSection from './sections/FoundationSection';
@@ -58,22 +59,35 @@ const KinhDichPage: React.FC<KinhDichPageProps> = ({ defaultMode = 'casting', on
   };
 
   return (
-    <div className="fade-in">
-      {/* Page header */}
-      <div className="tab-header section dark-section" style={{ paddingBottom: '0' }}>
-        <div className="container">
-          <div className="section-title reveal light-title" style={{ marginBottom: '36px' }}>
-            <p className="eyebrow">Kinh Dịch</p>
-            <h2>Kinh Dịch Truyền Thống</h2>
-            <p>Lập quẻ, luận giải bằng AI và tra cứu 64 quẻ.</p>
-          </div>
+    <div className="kd-vip-container fade-in">
+      <div className="kd-vip-glow" />
+      <div className="kd-vip-stars" />
+      
+      <div className="kd-motif-left">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
+          <path d="M50 10 L50 90 M10 50 L90 50" stroke="currentColor" strokeWidth="1" opacity="0.5" />
+        </svg>
+      </div>
+      <div className="kd-motif-right">
+        <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="1" opacity="0.3" />
+          <circle cx="50" cy="50" r="30" stroke="currentColor" strokeWidth="2" />
+          <circle cx="50" cy="50" r="15" stroke="currentColor" strokeWidth="1" strokeDasharray="2 2" />
+        </svg>
+      </div>
 
-          {/* Internal sub-tab selector */}
-          <div className="kd-sub-tabs" role="tablist" aria-label="Chọn chế độ Kinh Dịch">
+      <div className="kd-vip-content">
+        <div className="kd-vip-header">
+          <div className="kd-eyebrow">Kinh Dịch</div>
+          <h2 className="kd-vip-title">Kinh Dịch Truyền Thống</h2>
+          <p className="kd-vip-subtitle">Lập quẻ, giải đoán với năng lượng AI, và chiêm nghiệm đạo lý của 64 quẻ.</p>
+          
+          <div className="kd-vip-tabs" role="tablist" aria-label="Chọn chế độ Kinh Dịch">
             <button
               role="tab"
               aria-selected={kdTab === 'casting'}
-              className={`kd-sub-tab${kdTab === 'casting' ? ' active' : ''}`}
+              className={`kd-vip-tab${kdTab === 'casting' ? ' active' : ''}`}
               onClick={() => handleTabChange('casting')}
               id="kd-tab-casting"
               aria-controls="kd-panel-casting"
@@ -90,7 +104,7 @@ const KinhDichPage: React.FC<KinhDichPageProps> = ({ defaultMode = 'casting', on
             <button
               role="tab"
               aria-selected={kdTab === 'manual'}
-              className={`kd-sub-tab${kdTab === 'manual' ? ' active' : ''}`}
+              className={`kd-vip-tab${kdTab === 'manual' ? ' active' : ''}`}
               onClick={() => handleTabChange('manual')}
               id="kd-tab-manual"
               aria-controls="kd-panel-manual"
@@ -106,12 +120,11 @@ const KinhDichPage: React.FC<KinhDichPageProps> = ({ defaultMode = 'casting', on
             <button
               role="tab"
               aria-selected={kdTab === 'ai-reading'}
-              className={`kd-sub-tab${kdTab === 'ai-reading' ? ' active' : ''}`}
+              className={`kd-vip-tab${kdTab === 'ai-reading' ? ' active' : ''}`}
               onClick={() => handleTabChange('ai-reading')}
               id="kd-tab-ai"
               aria-controls="kd-panel-ai"
             >
-              {/* Orbit / AI sigil */}
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} aria-hidden="true">
                 <circle cx="8" cy="8" r="6.5" stroke="currentColor" strokeWidth="1.4"/>
                 <circle cx="8" cy="8" r="2" fill="currentColor"/>
@@ -122,11 +135,12 @@ const KinhDichPage: React.FC<KinhDichPageProps> = ({ defaultMode = 'casting', on
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Tab panels */}
-      <div className="container" style={{ paddingBottom: '80px' }}>
-        {renderContent()}
+        <div className="kd-vip-card-wrapper" style={{ paddingBottom: '80px' }}>
+          <div className="kd-vip-card">
+            {renderContent()}
+          </div>
+        </div>
       </div>
     </div>
   );
