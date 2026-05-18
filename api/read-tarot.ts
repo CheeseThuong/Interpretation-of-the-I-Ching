@@ -1,6 +1,21 @@
 import { buildTarotReadingPrompt } from '../src/lib/ai/prompts';
 import { prepareTarotReferenceContext } from '../src/lib/ai/tarotReference';
 import { prepareZodiacReferenceContext } from '../src/lib/astrology/zodiacReference';
+import { buildTarotContextBundle } from '../src/lib/ai/contextBundle';
+
+// Global memory cache for AI responses
+const aiCache = new Map<string, any>();
+
+function generateCacheKey(bundle: any): string {
+  return JSON.stringify({
+    q: bundle.currentQuestion.trim().toLowerCase(),
+    qt: bundle.questionContext.questionType,
+    dt: bundle.questionContext.decisionType,
+    st: bundle.readingData.spreadType,
+    cards: bundle.readingData.cards?.map((c: any) => `${c.name}_${c.isReversed}`) || [],
+    z: bundle.zodiacContext?.zodiacSign || ''
+  });
+}
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -19,23 +34,40 @@ export default async function handler(req: any, res: any) {
       return res.status(500).json({ error: 'Server is missing AI_API_KEY environment variable' });
     }
 
-    // Tarot dataset reference (Dendory)
+    // Reference Contexts
     const cardNames: string[] = (data.drawnCards as Array<{ name: string }>).map(c => c.name);
     const referenceContext = prepareTarotReferenceContext(cardNames, 3);
-
-    // Zodiac dataset reference — optional, fails silently if missing
     let zodiacReferenceContext = '';
     if (data.zodiacLens?.sign) {
       zodiacReferenceContext = prepareZodiacReferenceContext(data.zodiacLens.sign, undefined, 2);
     }
 
-    // Combine reference contexts
-    const combinedReference = [referenceContext, zodiacReferenceContext].filter(Boolean).join('\n\n');
+    // Build Context Bundle
+    data.tarotReferenceContext = referenceContext;
+    data.zodiacReferenceContext = zodiacReferenceContext;
+    const contextBundle = buildTarotContextBundle(data);
 
-    const prompt = buildTarotReadingPrompt(data, combinedReference);
+    // Cache Check
+    const cacheKey = generateCacheKey(contextBundle);
+    if (aiCache.has(cacheKey)) {
+      console.log('Serving Tarot AI from cache');
+      return res.status(200).json(aiCache.get(cacheKey));
+    }
+
+    // Dev Logging
+    console.log('DEV ONLY - Calling Gemini with:', {
+      currentQuestion: contextBundle.currentQuestion,
+      questionType: contextBundle.questionContext.questionType,
+      memorySummaryIncluded: !!contextBundle.userMemorySummary,
+      zodiacIncluded: !!contextBundle.zodiacContext,
+      synthesisIncluded: !!contextBundle.synthesis,
+      tarotReferenceIncluded: !!contextBundle.tarotReferenceContext
+    });
+
+    const prompt = buildTarotReadingPrompt(contextBundle);
 
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+      \`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=\${apiKey}\`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -54,7 +86,7 @@ export default async function handler(req: any, res: any) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Gemini API Error:', errorText);
-      throw new Error(`AI API error: ${response.statusText}`);
+      throw new Error(`AI API error: \${response.statusText}`);
     }
 
     const aiData = await response.json();
@@ -67,10 +99,18 @@ export default async function handler(req: any, res: any) {
 
     try {
       const structuredResult = JSON.parse(resultText);
-      // Attach birth date if provided (it was not in the AI output schema to avoid PII in AI)
+      // Attach birth date if provided
       if (data.birthDate && structuredResult.zodiacContext) {
         structuredResult.zodiacContext.birthDate = data.birthDate;
       }
+      
+      // Save to cache
+      aiCache.set(cacheKey, structuredResult);
+      if (aiCache.size > 100) {
+        const firstKey = aiCache.keys().next().value;
+        if (firstKey) aiCache.delete(firstKey);
+      }
+
       return res.status(200).json(structuredResult);
     } catch (parseError) {
       console.error('Failed to parse AI JSON:', resultText);

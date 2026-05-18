@@ -1,4 +1,19 @@
 import { buildKinhDichReadingPrompt } from '../src/lib/ai/prompts';
+import { buildKinhDichContextBundle } from '../src/lib/ai/contextBundle';
+
+// Global memory cache for AI responses
+const aiCache = new Map<string, any>();
+
+function generateCacheKey(bundle: any): string {
+  return JSON.stringify({
+    q: bundle.currentQuestion.trim().toLowerCase(),
+    qt: bundle.questionContext.questionType,
+    dt: bundle.questionContext.decisionType,
+    ph: bundle.readingData.hexagram?.primary || '',
+    ch: bundle.readingData.hexagram?.changed || '',
+    ml: bundle.readingData.hexagram?.movingLines || []
+  });
+}
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -17,12 +32,27 @@ export default async function handler(req: any, res: any) {
       return res.status(500).json({ error: 'Server is missing AI_API_KEY environment variable' });
     }
 
-    const prompt = buildKinhDichReadingPrompt({
-      ...data,
-      method: data.method || 'self-cast'
+    // Build Context Bundle
+    const contextBundle = buildKinhDichContextBundle(data);
+
+    // Cache Check
+    const cacheKey = generateCacheKey(contextBundle);
+    if (aiCache.has(cacheKey)) {
+      console.log('Serving Kinh Dich AI from cache');
+      return res.status(200).json(aiCache.get(cacheKey));
+    }
+
+    // Dev Logging
+    console.log('DEV ONLY - Calling Gemini with:', {
+      currentQuestion: contextBundle.currentQuestion,
+      questionType: contextBundle.questionContext.questionType,
+      memorySummaryIncluded: !!contextBundle.userMemorySummary,
+      synthesisIncluded: !!contextBundle.synthesis
     });
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    const prompt = buildKinhDichReadingPrompt(contextBundle);
+
+    const response = await fetch(\`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=\${apiKey}\`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -39,7 +69,7 @@ export default async function handler(req: any, res: any) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Gemini API Error:', errorText);
-      throw new Error(`AI API error: ${response.statusText}`);
+      throw new Error(`AI API error: \${response.statusText}`);
     }
 
     const aiData = await response.json();
@@ -50,14 +80,19 @@ export default async function handler(req: any, res: any) {
 
     const resultText = aiData.candidates[0].content.parts[0].text;
     
-    // Robust parsing
     try {
       const structuredResult = JSON.parse(resultText);
+      
+      // Save to cache
+      aiCache.set(cacheKey, structuredResult);
+      if (aiCache.size > 100) {
+        const firstKey = aiCache.keys().next().value;
+        if (firstKey) aiCache.delete(firstKey);
+      }
+
       return res.status(200).json(structuredResult);
     } catch (parseError) {
       console.error('Failed to parse AI JSON:', resultText);
-      // Fallback: If AI returned Markdown or raw text, we might need a backup parser
-      // but with response_mime_type: "application/json", Gemini is usually reliable.
       return res.status(500).json({ error: 'Dữ liệu từ AI không đúng định dạng. Vui lòng thử lại.' });
     }
   } catch (error: any) {
@@ -65,4 +100,3 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: 'Không thể kết nối với AI lúc này. Vui lòng thử lại sau.' });
   }
 }
-
