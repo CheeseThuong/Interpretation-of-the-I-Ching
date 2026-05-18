@@ -5,6 +5,7 @@ import KinhDichPage from './components/KinhDichPage';
 import TarotSection from './components/sections/TarotSection';
 import DecisionSection from './components/sections/DecisionSection';
 import GallerySection from './components/sections/GallerySection';
+import JournalSection from './components/sections/JournalSection';
 import Footer from './components/Footer';
 import { useScrollReveal } from './hooks/useScrollEffects';
 
@@ -71,31 +72,14 @@ const App: React.FC = () => {
         )}
 
         {activeTab === 'tarot' && (
-          <div className="fade-in">
-            <div className="tab-header section dark-section" style={{ paddingBottom: '0' }}>
-              <div className="container">
-                <div className="section-title reveal light-title">
-                  <h2>Tarot & Quyết Định</h2>
-                  <p>Các trải bài Tarot và công cụ hỗ trợ quyết định.</p>
-                </div>
-              </div>
-            </div>
+          <div className="fade-in tarot-page-shell">
             <TarotSection />
             <DecisionSection />
           </div>
         )}
 
         {activeTab === 'journal' && (
-          <div className="fade-in">
-            <div className="tab-header section dark-section">
-              <div className="container">
-                <div className="section-title reveal light-title">
-                  <h2>Nhật ký Tâm linh</h2>
-                  <p>Lịch sử các lần gieo quẻ và trải bài của bạn (Sắp ra mắt).</p>
-                </div>
-              </div>
-            </div>
-          </div>
+          <JournalSection />
         )}
       </main>
 

@@ -3,7 +3,6 @@ import '../../styles/tarot.css';
 import { SPREADS } from '../../data/tarot';
 import type { TarotSpread, TarotCard, DrawnCard } from '../../types/tarot';
 import { mockAITarotReading } from '../../utils/mockAI';
-import type { ReadingTone } from '../../types/ai';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
 import { createFreshTarotDeck, shuffleTarotDeck, drawTarotCards } from '../../utils/tarotDeck';
 import { synthesizeTarotReading } from '../../lib/readings/synthesis';
@@ -12,6 +11,8 @@ import { TarotSynthesisDisplay } from '../ui/ReadingSynthesis';
 import { getZodiacSignFromDate, buildZodiacLens } from '../../lib/astrology/zodiac';
 import type { ZodiacLens } from '../../lib/astrology/zodiac';
 import TarotLandingPage from '../tarot/TarotLandingPage';
+import { saveReadingToLocalMemory, getLocalReadingHistory } from '../../lib/memory/localReadingMemory';
+import { buildUserProfileFromHistory, buildMemorySummaryForPrompt } from '../../lib/memory/userProfile';
 
 type TarotStep = 'landing' | 'select-spread' | 'shuffle' | 'draw' | 'result';
 
@@ -26,9 +27,9 @@ const TarotSection: React.FC = () => {
   const [isShuffling, setIsShuffling] = useState(false);
   
   // AI Reading State
-  const [aiState, setAiState] = useState<'idle' | 'loading' | 'done'>('idle');
-  const [aiTone, setAiTone] = useState<ReadingTone>('Mystical and poetic');
+  const [aiState, setAiState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [aiResponse, setAiResponse] = useState<any>(null);
+  const [readingId, setReadingId] = useState<string | undefined>(undefined);
 
   // Animation state
   const [isRevealing, setIsRevealing] = useState(false);
@@ -40,23 +41,6 @@ const TarotSection: React.FC = () => {
   // Zodiac state
   const [birthDate, setBirthDate] = useState('');
   const [zodiacLens, setZodiacLens] = useState<ZodiacLens | null>(null);
-
-  const TONES: ReadingTone[] = [
-    'Gentle and healing',
-    'Direct and honest',
-    'Mystical and poetic',
-    'Practical and logical',
-    'Gen Z spiritual bestie'
-  ];
-
-  // Vietnamese display labels for tones — internal values stay as English enum
-  const TONE_VI: Record<ReadingTone, string> = {
-    'Gentle and healing':    'Diụ dàng và chữa lành',
-    'Direct and honest':     'Thẳng thắn và chân thật',
-    'Mystical and poetic':   'Huyền bí và thi vị',
-    'Practical and logical': 'Thực tế và logic',
-    'Gen Z spiritual bestie':'Bạn tâm linh kiểu Gen Z',
-  };
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -138,7 +122,7 @@ const TarotSection: React.FC = () => {
     const payload = {
       question,
       topic: 'Tarot Reading',
-      readingTone: aiTone,
+      readingTone: 'kinhdichai_signature',
       spreadType: selectedSpread.name,
       drawnCards: drawnCards.map(dc => ({
         name: dc.card.name,
@@ -154,24 +138,52 @@ const TarotSection: React.FC = () => {
         ? `Tong quan: ${synthesis.overview}\nMoi lien he: ${synthesis.patternSummary}\nTin hieu: ${synthesis.mainSignal}\nDiem noi bat: ${synthesis.keyTension}\nLoi khuyen tong hop: ${synthesis.keyAdvice}\nTom tat: ${synthesis.oneLineSummary}`
         : undefined,
       zodiacLens: zodiacLens ?? undefined,
+      userMemorySummary: buildMemorySummaryForPrompt(
+        buildUserProfileFromHistory(getLocalReadingHistory()),
+        getLocalReadingHistory(5)
+      )
     };
 
     try {
-      const response = await fetch('/api/read-tarot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      let finalRes: any;
+      try {
+        const response = await fetch('/api/read-tarot', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
 
-      if (!response.ok) throw new Error('Real API failed');
-      const res = await response.json();
-      setAiResponse(res);
+        if (!response.ok) throw new Error('Real API failed');
+        finalRes = await response.json();
+      } catch (err) {
+        console.warn('Fallback to mock Tarot AI');
+        finalRes = await mockAITarotReading(question, drawnCards, 'kinhdichai_signature');
+      }
+
+      setAiResponse(finalRes);
       setAiState('done');
+
+      // Save to local memory
+      const id = saveReadingToLocalMemory({
+        type: 'tarot',
+        question,
+        topic: 'Tarot Reading',
+        birthDate: birthDate || undefined,
+        zodiacSign: zodiacLens?.sign,
+        spreadType: selectedSpread.name,
+        cards: drawnCards.map(dc => ({
+          name: dc.card.name,
+          orientation: dc.isReversed ? 'reversed' : 'upright',
+          position: dc.positionName
+        })),
+        synthesis,
+        aiAnswer: finalRes
+      });
+      setReadingId(id);
+
     } catch (err) {
-      console.warn('Fallback to mock Tarot AI');
-      const res = await mockAITarotReading(question, drawnCards, aiTone);
-      setAiResponse(res);
-      setAiState('done');
+      console.error('AI Error:', err);
+      setAiState('error');
     }
 
     setTimeout(() => {
@@ -461,17 +473,6 @@ const TarotSection: React.FC = () => {
                     <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '20px' }}>
                       AI sẽ kết nối ý nghĩa của tất cả các lá bài trong trải bài của bạn để đưa ra thông điệp tổng hợp.
                     </p>
-                    <div style={{ display: 'inline-block', textAlign: 'left', marginBottom: '20px' }}>
-                      <label htmlFor="tarotAiTone" style={{ display: 'block', color: 'var(--amber)', fontSize: '0.85rem', marginBottom: '6px' }}>Giọng điệu luận giải</label>
-                      <select
-                        id="tarotAiTone"
-                        value={aiTone}
-                        onChange={(e) => setAiTone(e.target.value as ReadingTone)}
-                        style={{ minWidth: '220px' }}
-                      >
-                        {TONES.map(t => <option key={t} value={t}>{TONE_VI[t]}</option>)}
-                      </select>
-                    </div>
                     <br />
                     <button onClick={handleGetAIReading} className="button primary-button" style={{ background: 'var(--amber)', color: '#000' }}>
                       Luận Bài Bằng AI
@@ -487,7 +488,7 @@ const TarotSection: React.FC = () => {
                 )}
 
                 {aiState === 'done' && aiResponse && (
-                  <AIReadingDisplay response={aiResponse} />
+                  <AIReadingDisplay response={aiResponse} readingId={readingId} />
                 )}
               </div>
 

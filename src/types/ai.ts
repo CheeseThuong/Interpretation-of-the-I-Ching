@@ -1,11 +1,5 @@
-export type DecisionSignal = 'proceed' | 'wait' | 'avoid' | 'unclear' | 'conditional';
+export type DecisionSignal = 'proceed' | 'wait' | 'avoid' | 'unclear' | 'conditional' | 'reflection';
 export type ConfidenceLevel = 'low' | 'medium' | 'high';
-export type ReadingTone =
-  | 'Gentle and healing'
-  | 'Direct and honest'
-  | 'Mystical and poetic'
-  | 'Practical and logical'
-  | 'Gen Z spiritual bestie';
 
 export type QuestionType = 
   | 'love_relationship' 
@@ -41,10 +35,9 @@ export interface QuestionContext {
   mainObject: string;
   userIntent: string;
   riskLevel: 'low' | 'medium' | 'high';
-  answerMode: 'decision_guidance' | 'emotional_reading' | 'risk_assessment' | 'daily_guidance' | 'reflection';
+  answerMode: 'decision_guidance' | 'emotional_reading' | 'risk_assessment' | 'daily_guidance' | 'reflection' | 'weekly_relationship_forecast';
   requiredLens: string[];
   psychologicalNeed?: string;
-  emotionalStateHypothesis?: string;
 }
 
 export interface ZodiacContext {
@@ -60,18 +53,14 @@ export interface ZodiacContext {
 }
 
 export interface TarotCardReading {
-  position: string;
+  positionLabel: string;
+  positionFunction: string;
   cardName: string;
   orientation: 'upright' | 'reversed';
-  meaningInThisQuestion: string;
-  decisionImpact: DecisionSignal;
-  advice: string;
-}
-
-export interface HexagramExplanation {
-  primaryHexagram: string;
-  movingLines: string;
-  changedHexagram: string;
+  meaningInThisPosition: string;
+  meaningForUserQuestion: string;
+  psychologicalInsight: string;
+  practicalSignal: string;
 }
 
 export interface UnifiedAIReadingResponse {
@@ -79,42 +68,37 @@ export interface UnifiedAIReadingResponse {
   decisionSignal: DecisionSignal;
   confidenceLevel: ConfidenceLevel;
   questionContext: QuestionContext;
-  quickSummary: string;
-  symbolicReading: {
-    mainSymbol: string;
-    mainPattern: string;
-    changingFactor: string;
-    futureTrend: string;
+  personalizationUsed: {
+    memoryUsed: boolean;
+    zodiacUsed: boolean;
+    referenceUsed: boolean;
+    synthesisUsed: boolean;
   };
+  quickSummary: string;
+  synthesisSummary: string;
+  positionAnalyses: TarotCardReading[];
+  symbolicReading: {
+    // Both
+    mainPattern?: string;
+    changingFactor?: string;
+    futureTrend?: string; // maybe missing in new schema, but okay to keep optional
+    // Kinh Dich
+    primaryHexagram?: string;
+    movingLines?: string;
+    changedHexagram?: string;
+    transformationSummary?: string;
+  };
+  psychologicalInterpretation: string;
   contextualInterpretation: string;
   decisionChecklist: string[];
   practicalAdvice: string[];
   thingsToAvoid: string[];
   riskNotes: string[];
-  zodiacContext?: ZodiacContext;
-  psychologicalInterpretation?: string;
-  positionAnalyses?: Array<{
-    positionLabel: string;
-    positionFunction: string;
-    cardName: string;
-    orientation: string;
-    meaningInThisPosition: string;
-    meaningForUserQuestion: string;
-    zodiacPersonalization?: string;
-    psychologicalInsight: string;
-    practicalSignal: string;
-  }>;
   
-  // Dynamic symbol details based on the reading type
-  symbolDetails: {
-    cardInterpretations?: TarotCardReading[];
-    hexagramExplanation?: HexagramExplanation;
-  };
-  
-  referenceUsed?: string[];
+  zodiacContext?: ZodiacContext; // added back by API route if birthDate provided
   finalMessage: string;
 }
 
-// Legacy compatibility types if needed by other components during transition
+// Legacy compatibility types
 export type KinhDichAIReadingResponse = UnifiedAIReadingResponse;
 export type TarotAIReadingResponse = UnifiedAIReadingResponse;

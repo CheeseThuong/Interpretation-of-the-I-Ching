@@ -62,14 +62,17 @@ const TarotLandingPage: React.FC<TarotLandingPageProps> = ({ onStart, onSelectSp
           Chọn một trải bài, tập trung vào điều bạn đang băn khoăn, rồi để AI kết nối ý nghĩa lá bài, vị trí trải bài, cung hoàng đạo và ngữ cảnh câu hỏi thành một lời luận dễ hiểu.
         </p>
 
-        <div className="tarot-deck-stack" style={{ margin: '0 auto 40px', display: 'flex', justifyContent: 'center', gap: '15px' }}>
-          {[...Array(3)].map((_, i) => (
-             <div key={i} className="tarot-card" style={{ position: 'relative', width: '100px', height: '170px', animation: `cosmicTwinkle ${3 + i}s infinite alternate` }}>
-               <div className="tarot-card-inner">
-                  <div className="tarot-card-back"></div>
+        <div className="tarot-hero-visual">
+          <div className="tarot-hero-glow"></div>
+          <div className="tarot-hero-deck">
+            {[...Array(5)].map((_, i) => (
+               <div key={i} className={`tarot-hero-card card-${i}`}>
+                  <div className="tarot-hero-card-back">
+                    <div className="tarot-hero-orbit"></div>
+                  </div>
                </div>
-             </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>

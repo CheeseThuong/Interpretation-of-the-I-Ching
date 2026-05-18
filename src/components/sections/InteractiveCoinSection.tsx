@@ -4,12 +4,13 @@ import CoinFlip from '../ui/CoinFlip';
 import { computeManualHexagramState } from '../../utils/hexagram';
 import { mockAIHexagramReading } from '../../utils/mockAI';
 import type { AIReadingResponse } from '../../utils/mockAI';
-import type { ReadingTone } from '../../types/ai';
 import type { ManualHexagramState, CastingMetadata } from '../../types';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
 import { synthesizeKinhDichReading } from '../../lib/readings/synthesis';
 import type { KinhDichSynthesis } from '../../lib/readings/synthesis';
 import { KinhDichSynthesisDisplay } from '../ui/ReadingSynthesis';
+import { saveReadingToLocalMemory, getLocalReadingHistory } from '../../lib/memory/localReadingMemory';
+import { buildUserProfileFromHistory, buildMemorySummaryForPrompt } from '../../lib/memory/userProfile';
 
 type Step = 'intro' | 'casting' | 'result';
 
@@ -21,14 +22,6 @@ const TOPICS = [
   'Gia đình / Family',
   'Quyết định cá nhân / Personal Decision',
   'Chữa lành nội tâm / Inner Healing'
-];
-
-const TONES: ReadingTone[] = [
-  'Gentle and healing',
-  'Direct and honest',
-  'Mystical and poetic',
-  'Practical and logical',
-  'Gen Z spiritual bestie'
 ];
 
 const InteractiveCoinSection: React.FC = () => {
@@ -56,8 +49,8 @@ const InteractiveCoinSection: React.FC = () => {
 
   // AI Reading State
   const [aiState, setAiState] = useState<'idle' | 'loading' | 'done'>('idle');
-  const [aiTone, setAiTone] = useState<ReadingTone>('Mystical and poetic');
   const [aiResponse, setAiResponse] = useState<AIReadingResponse | null>(null);
+  const [readingId, setReadingId] = useState<string | undefined>(undefined);
 
   // Synthesis state
   const [synthesis, setSynthesis] = useState<KinhDichSynthesis | null>(null);
@@ -148,6 +141,7 @@ const InteractiveCoinSection: React.FC = () => {
     setCurrentFaces([3, 3, 3]);
     setAiState('idle');
     setAiResponse(null);
+    setReadingId(undefined);
   };
 
   const handleGetAIReading = async () => {
@@ -164,35 +158,55 @@ const InteractiveCoinSection: React.FC = () => {
       sixLines: hexagramState.primaryLines.join(', '),
       castingDateTime: `${metadata.localTime} ${metadata.gregorianDate}`,
       timezone: metadata.timezone,
-      readingTone: aiTone
+      readingTone: 'kinhdichai_signature',
+      userMemorySummary: buildMemorySummaryForPrompt(
+        buildUserProfileFromHistory(getLocalReadingHistory()),
+        getLocalReadingHistory(5)
+      )
     };
 
     try {
+      let finalRes: AIReadingResponse;
       // 1. Try real API call securely via Vercel Serverless Function
-      const response = await fetch('/api/read-hexagram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error('Real API failed, falling back to mock.');
-      }
-
-      const res: AIReadingResponse = await response.json();
-      setAiResponse(res);
-      setAiState('done');
-    } catch (err) {
-      console.warn('Backend API not available or failed. Using fallback mock AI:', err);
-      // 2. Fallback to mock AI if server API fails or isn't configured
       try {
-        const res = await mockAIHexagramReading(metadata, hexagramState, aiTone);
-        setAiResponse(res);
-        setAiState('done');
-      } catch (fallbackErr) {
-        console.error(fallbackErr);
-        setAiState('idle');
+        const response = await fetch('/api/read-hexagram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error('Real API failed, falling back to mock.');
+        }
+
+        finalRes = await response.json();
+      } catch (err) {
+        console.warn('Backend API not available or failed. Using fallback mock AI:', err);
+        // 2. Fallback to mock AI if server API fails or isn't configured
+        finalRes = await mockAIHexagramReading(metadata, hexagramState, 'kinhdichai_signature');
       }
+
+      setAiResponse(finalRes);
+      setAiState('done');
+
+      // Save to local memory
+      const id = saveReadingToLocalMemory({
+        type: 'iching',
+        question: metadata.question,
+        topic: metadata.topic,
+        hexagram: {
+          primary: hexagramState.primaryInfo.name,
+          changed: hexagramState.changedInfo.name,
+          movingLines: hexagramState.movingLines
+        },
+        synthesis,
+        aiAnswer: finalRes
+      });
+      setReadingId(id);
+
+    } catch (fallbackErr) {
+      console.error(fallbackErr);
+      setAiState('idle');
     }
 
     // Scroll smoothly down to the reading
@@ -404,12 +418,6 @@ const InteractiveCoinSection: React.FC = () => {
                       <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '20px' }}>
                         Kinh Dịch AI sẽ tổng hợp hào động, tượng quẻ và câu hỏi của bạn để đưa ra luận giải chi tiết.
                       </p>
-                      <div style={{ display: 'inline-block', textAlign: 'left', marginBottom: '20px' }}>
-                        <label htmlFor="aiToneSelect" style={{ color: 'var(--amber)' }}>Giọng điệu luận giải</label>
-                        <select id="aiToneSelect" value={aiTone} onChange={(e) => setAiTone(e.target.value as ReadingTone)} style={{ background: 'rgba(0,0,0,0.3)', color: 'var(--white)' }}>
-                          {TONES.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                      </div>
                       <br />
                       <button onClick={handleGetAIReading} className="button primary-button" style={{ background: 'linear-gradient(135deg, #7042a3, #2a4b8d)', color: '#fff', border: '1px solid #7042a3' }}>
                         Luận Quẻ Bằng AI
@@ -427,7 +435,7 @@ const InteractiveCoinSection: React.FC = () => {
 
                   {aiState === 'done' && aiResponse && (
                     <div id="ai-reading-result">
-                      <AIReadingDisplay response={aiResponse} />
+                      <AIReadingDisplay response={aiResponse} readingId={readingId} />
                     </div>
                   )}
                 </div>

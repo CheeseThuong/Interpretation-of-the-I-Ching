@@ -1,7 +1,11 @@
 import React from 'react';
 import type { UnifiedAIReadingResponse, TarotCardReading } from '../../types/ai';
+import { saveReadingFeedback } from '../../lib/memory/localReadingMemory';
 
-interface Props { response: UnifiedAIReadingResponse; }
+interface Props { 
+  response: UnifiedAIReadingResponse; 
+  readingId?: string;
+}
 
 const SIGNAL = {
   proceed:     { label: 'Có thể tiến hành', color: '#4ade80', bg: 'rgba(74,222,128,0.1)' },
@@ -9,6 +13,7 @@ const SIGNAL = {
   avoid:       { label: 'Không nên vội',    color: '#f87171', bg: 'rgba(248,113,113,0.1)' },
   unclear:     { label: 'Chưa đủ rõ',       color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
   conditional: { label: 'Có điều kiện',     color: '#a78bfa', bg: 'rgba(167,139,250,0.1)' },
+  reflection:  { label: 'Phản chiếu',       color: '#60a5fa', bg: 'rgba(96,165,250,0.1)' },
 };
 
 /* ── shared primitives ─────────────────────────────────────────── */
@@ -114,7 +119,7 @@ const DailyLayout: React.FC<{ r: UnifiedAIReadingResponse }> = ({ r }) => (
 const POSITION_COLORS = ['#a78bfa','#f87171','#fbbf24','#4ade80','#60a5fa'];
 
 const FiveCardLayout: React.FC<{ r: UnifiedAIReadingResponse }> = ({ r }) => {
-  const cards: TarotCardReading[] = r.symbolDetails?.cardInterpretations ?? [];
+  const cards: TarotCardReading[] = r.positionAnalyses ?? [];
   const sig = SIGNAL[r.decisionSignal];
 
   return (
@@ -141,21 +146,24 @@ const FiveCardLayout: React.FC<{ r: UnifiedAIReadingResponse }> = ({ r }) => {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:'10px', flexWrap:'wrap', gap:'8px' }}>
                   <div>
                     <span style={{ fontSize:'0.72rem', color:POSITION_COLORS[i], textTransform:'uppercase', letterSpacing:'1px', display:'block', marginBottom:'4px' }}>
-                      Vị trí {i+1} — {card.position}
+                      Vị trí {i+1} — {card.positionLabel}
                     </span>
                     <h5 style={{ margin:0, fontSize:'1.05rem', color:'#fff' }}>{card.cardName}</h5>
                   </div>
                   <div style={{ display:'flex', gap:'8px', alignItems:'center' }}>
-                    <Tag color={SIGNAL[card.decisionImpact].color} bg={SIGNAL[card.decisionImpact].bg} label={SIGNAL[card.decisionImpact].label} />
+                    {SIGNAL[card.practicalSignal as keyof typeof SIGNAL] && (
+                      <Tag color={SIGNAL[card.practicalSignal as keyof typeof SIGNAL].color} bg={SIGNAL[card.practicalSignal as keyof typeof SIGNAL].bg} label={SIGNAL[card.practicalSignal as keyof typeof SIGNAL].label} />
+                    )}
                     <span style={{ fontSize:'0.78rem', color: card.orientation === 'reversed' ? '#f87171' : '#4ade80', fontWeight:'bold' }}>
                       {card.orientation === 'reversed' ? 'NGƯỢC' : 'XUÔI'}
                     </span>
                   </div>
                 </div>
-                <p style={{ fontSize:'0.97rem', lineHeight:'1.75', margin:'0 0 10px 0' }}>{card.meaningInThisQuestion}</p>
-                {card.advice && (
+                <p style={{ fontSize:'0.97rem', lineHeight:'1.75', margin:'0 0 10px 0' }}><strong>Ý nghĩa cơ bản:</strong> {card.meaningInThisPosition}</p>
+                <p style={{ fontSize:'0.97rem', lineHeight:'1.75', margin:'0 0 10px 0' }}><strong>Liên hệ câu hỏi:</strong> {card.meaningForUserQuestion}</p>
+                {card.psychologicalInsight && (
                   <div style={{ fontSize:'0.87rem', color:'var(--gold-soft)', fontStyle:'italic', borderTop:'1px solid rgba(255,255,255,0.07)', paddingTop:'10px' }}>
-                    {card.advice}
+                    Tâm lý: {card.psychologicalInsight}
                   </div>
                 )}
               </div>
@@ -227,7 +235,7 @@ const FiveCardLayout: React.FC<{ r: UnifiedAIReadingResponse }> = ({ r }) => {
 
 /* ── STANDARD layout (existing spreads) ────────────────────────── */
 const StandardLayout: React.FC<{ r: UnifiedAIReadingResponse }> = ({ r }) => {
-  const { questionContext, symbolDetails } = r;
+  const { questionContext, positionAnalyses } = r;
   const sig = SIGNAL[r.decisionSignal];
 
   return (
@@ -257,34 +265,40 @@ const StandardLayout: React.FC<{ r: UnifiedAIReadingResponse }> = ({ r }) => {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:'16px', marginBottom:'20px' }}>
           {[
             { label:'Năng lượng / Mood', val: r.quickSummary },
-            { label:'Mô hình hiện tại',  val: r.symbolicReading.mainPattern },
-            { label:'Yếu tố then chốt', val: r.symbolicReading.changingFactor },
-            { label:'Xu hướng sắp tới', val: r.symbolicReading.futureTrend },
-          ].map(({label, val}, i) => (
+            r.symbolicReading.mainPattern ? { label:'Mô hình hiện tại', val: r.symbolicReading.mainPattern } : null,
+            r.symbolicReading.changingFactor ? { label:'Yếu tố then chốt', val: r.symbolicReading.changingFactor } : null,
+            r.symbolicReading.futureTrend ? { label:'Xu hướng sắp tới', val: r.symbolicReading.futureTrend } : null,
+            r.symbolicReading.primaryHexagram ? { label:'Quẻ Chủ', val: r.symbolicReading.primaryHexagram } : null,
+            r.symbolicReading.movingLines ? { label:'Hào Động', val: r.symbolicReading.movingLines } : null,
+            r.symbolicReading.changedHexagram ? { label:'Quẻ Biến', val: r.symbolicReading.changedHexagram } : null,
+            r.symbolicReading.transformationSummary ? { label:'Sự chuyển hóa', val: r.symbolicReading.transformationSummary } : null,
+          ].filter(Boolean).map((item, i) => (
             <div key={i} className="glass-box" style={{ padding:'18px' }}>
-              <div style={{ fontSize:'0.72rem', color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'8px' }}>{label}</div>
-              <p style={{ margin:0, fontSize:'0.92rem', lineHeight:'1.65' }}>{val}</p>
+              <div style={{ fontSize:'0.72rem', color:'var(--text-muted)', textTransform:'uppercase', letterSpacing:'1px', marginBottom:'8px' }}>{item?.label}</div>
+              <p style={{ margin:0, fontSize:'0.92rem', lineHeight:'1.65' }}>{item?.val}</p>
             </div>
           ))}
         </div>
 
         {/* Card interpretations */}
-        {symbolDetails?.cardInterpretations && (
+        {positionAnalyses && positionAnalyses.length > 0 && (
           <div style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
-            {symbolDetails.cardInterpretations.map((card, i) => (
+            {positionAnalyses.map((card, i) => (
               <div key={i} className="glass-box" style={{ padding:'20px' }}>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'8px', flexWrap:'wrap', gap:'8px' }}>
-                  <span style={{ color:'var(--gold-soft)', fontWeight:'bold' }}>{card.position}</span>
+                  <span style={{ color:'var(--gold-soft)', fontWeight:'bold' }}>{card.positionLabel}</span>
                   <div style={{ display:'flex', gap:'8px' }}>
-                    <Tag color={SIGNAL[card.decisionImpact].color} bg={SIGNAL[card.decisionImpact].bg} label={SIGNAL[card.decisionImpact].label} />
+                    {SIGNAL[card.practicalSignal as keyof typeof SIGNAL] && (
+                      <Tag color={SIGNAL[card.practicalSignal as keyof typeof SIGNAL].color} bg={SIGNAL[card.practicalSignal as keyof typeof SIGNAL].bg} label={SIGNAL[card.practicalSignal as keyof typeof SIGNAL].label} />
+                    )}
                     <span style={{ fontSize:'0.78rem', color: card.orientation === 'reversed' ? '#f87171' : '#4ade80' }}>
                       {card.orientation === 'reversed' ? 'NGƯỢC' : 'XUÔI'}
                     </span>
                   </div>
                 </div>
                 <h5 style={{ margin:'0 0 8px', fontSize:'1rem' }}>{card.cardName}</h5>
-                <p style={{ fontSize:'0.93rem', marginBottom:'8px' }}>{card.meaningInThisQuestion}</p>
-                {card.advice && <div style={{ fontSize:'0.83rem', color:'var(--gold-soft)', fontStyle:'italic' }}>Lời khuyên: {card.advice}</div>}
+                <p style={{ fontSize:'0.93rem', marginBottom:'8px' }}>{card.meaningForUserQuestion}</p>
+                {card.psychologicalInsight && <div style={{ fontSize:'0.83rem', color:'var(--gold-soft)', fontStyle:'italic' }}>Tâm lý: {card.psychologicalInsight}</div>}
               </div>
             ))}
           </div>
@@ -396,9 +410,9 @@ const ZodiacPanel: React.FC<{ z: NonNullable<UnifiedAIReadingResponse['zodiacCon
 };
 
 /* ── ROOT component ─────────────────────────────────────────────── */
-const AIReadingDisplay: React.FC<Props> = ({ response }) => {
+const AIReadingDisplay: React.FC<Props> = ({ response, readingId }) => {
   const isDaily    = response.questionContext?.answerMode === 'daily_guidance';
-  const isFiveCard = !isDaily && (response.symbolDetails?.cardInterpretations?.length ?? 0) === 5;
+  const isFiveCard = !isDaily && (response.positionAnalyses?.length ?? 0) === 5;
 
   return (
     <div className="ai-reading-premium">
@@ -420,6 +434,57 @@ const AIReadingDisplay: React.FC<Props> = ({ response }) => {
       {isDaily    && <DailyLayout    r={response} />}
       {isFiveCard && <FiveCardLayout r={response} />}
       {!isDaily && !isFiveCard && <StandardLayout r={response} />}
+      
+      {readingId && (
+        <div style={{ marginTop: '40px', paddingTop: '20px', borderTop: '1px solid var(--border-soft)', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '15px' }}>Luận giải này có hữu ích không?</p>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <button 
+              className="button secondary-button" 
+              style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+              onClick={() => {
+                saveReadingFeedback(readingId, { helpful: true });
+                alert('Cảm ơn bạn đã phản hồi!');
+              }}
+            >
+              👍 Hữu ích
+            </button>
+            <button 
+              className="button secondary-button" 
+              style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+              onClick={() => {
+                saveReadingFeedback(readingId, { wrongContext: true });
+                alert('Cảm ơn bạn đã phản hồi!');
+              }}
+            >
+              Sai ngữ cảnh
+            </button>
+            <button 
+              className="button secondary-button" 
+              style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+              onClick={() => {
+                saveReadingFeedback(readingId, { tooGeneric: true });
+                alert('Cảm ơn bạn đã phản hồi!');
+              }}
+            >
+              Quá chung chung
+            </button>
+            <button 
+              className="button secondary-button" 
+              style={{ fontSize: '0.85rem', padding: '6px 12px' }}
+              onClick={() => {
+                const note = prompt('Nhập ghi chú của bạn:');
+                if (note) {
+                  saveReadingFeedback(readingId, { note });
+                  alert('Đã lưu ghi chú!');
+                }
+              }}
+            >
+              📝 Ghi chú của tôi
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

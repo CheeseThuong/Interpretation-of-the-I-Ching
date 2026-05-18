@@ -6,8 +6,9 @@ import { coinLineOptions } from '../../data/shared';
 import { heavenlyStems } from '../../data/canchi';
 import { mockAIHexagramReading } from '../../utils/mockAI';
 import type { AIReadingResponse } from '../../utils/mockAI';
-import type { ReadingTone } from '../../types/ai';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
+import { saveReadingToLocalMemory, getLocalReadingHistory } from '../../lib/memory/localReadingMemory';
+import { buildUserProfileFromHistory, buildMemorySummaryForPrompt } from '../../lib/memory/userProfile';
 
 const TOPICS = [
   'Tình yêu / Love',
@@ -17,14 +18,6 @@ const TOPICS = [
   'Gia đình / Family',
   'Quyết định cá nhân / Personal Decision',
   'Chữa lành nội tâm / Inner Healing'
-];
-
-const TONES: ReadingTone[] = [
-  'Gentle and healing',
-  'Direct and honest',
-  'Mystical and poetic',
-  'Practical and logical',
-  'Gen Z spiritual bestie'
 ];
 
 const CoinSection: React.FC = () => {
@@ -44,9 +37,9 @@ const CoinSection: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // AI states
-  const [aiTone, setAiTone] = useState<ReadingTone>(TONES[2]);
   const [aiState, setAiState] = useState<'idle' | 'loading' | 'done'>('idle');
-  const [aiResponse, setAiResponse] = useState<AIReadingResponse | null>(null);
+  const [aiResponse, setAiResponse] = useState<any>(null);
+  const [readingId, setReadingId] = useState<string | undefined>(undefined);
 
   const handleUpdateLine = (index: number, value: number) => {
     const next = [...coinLines];
@@ -102,34 +95,52 @@ const CoinSection: React.FC = () => {
       sixLines: hexagramState.primaryLines.join(', '),
       castingDateTime: `${metadata.localTime} ${metadata.gregorianDate}`,
       timezone: metadata.timezone,
-      readingTone: aiTone,
-      method: 'manual-real-life'
+      readingTone: 'kinhdichai_signature',
+      method: 'manual-real-life',
+      userMemorySummary: buildMemorySummaryForPrompt(
+        buildUserProfileFromHistory(getLocalReadingHistory()),
+        getLocalReadingHistory(5)
+      )
     };
 
     try {
-      const response = await fetch('/api/read-hexagram', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        throw new Error('API failed');
-      }
-
-      const res: AIReadingResponse = await response.json();
-      setAiResponse(res);
-      setAiState('done');
-    } catch (err) {
-      console.warn('Backend API failed, using mock:', err);
+      let finalRes: AIReadingResponse;
       try {
-        const res = await mockAIHexagramReading(metadata, hexagramState, aiTone);
-        setAiResponse(res);
-        setAiState('done');
-      } catch (fallbackErr) {
-        console.error(fallbackErr);
-        setAiState('idle');
+        const response = await fetch('/api/read-hexagram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error('API failed');
+        }
+
+        finalRes = await response.json();
+      } catch (err) {
+        console.warn('Backend API failed, using mock:', err);
+        finalRes = await mockAIHexagramReading(metadata, hexagramState, 'kinhdichai_signature');
       }
+
+      setAiResponse(finalRes);
+      setAiState('done');
+
+      // Save to local memory
+      const id = saveReadingToLocalMemory({
+        type: 'iching',
+        question: metadata.question,
+        topic: metadata.topic,
+        hexagram: {
+          primary: hexagramState.primaryInfo.name,
+          changed: hexagramState.changedInfo.name,
+          movingLines: hexagramState.movingLines
+        },
+        aiAnswer: finalRes
+      });
+      setReadingId(id);
+    } catch (err) {
+      console.error(err);
+      setAiState('idle');
     }
 
     // Scroll to AI reading area
@@ -146,6 +157,7 @@ const CoinSection: React.FC = () => {
     setError(null);
     setAiState('idle');
     setAiResponse(null);
+    setReadingId(undefined);
   };
 
   const displayOrder = [5, 4, 3, 2, 1, 0]; // reversed display indices (Hào 6 down to Hào 1)
@@ -328,12 +340,6 @@ const CoinSection: React.FC = () => {
                       <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '20px' }}>
                         Kinh Dịch AI sẽ tổng hợp hào động, tượng quẻ và câu hỏi của bạn để đưa ra luận giải chi tiết.
                       </p>
-                      <div style={{ display: 'inline-block', textAlign: 'left', marginBottom: '20px' }}>
-                        <label htmlFor="manualAiTone" style={{ color: 'var(--gold-soft)' }}>Giọng điệu luận giải</label>
-                        <select id="manualAiTone" value={aiTone} onChange={(e) => setAiTone(e.target.value as ReadingTone)}>
-                          {TONES.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                      </div>
                       <br />
                       <button onClick={handleGetAIReading} className="button primary-button">
                         Luận Quẻ Bằng AI
@@ -350,14 +356,13 @@ const CoinSection: React.FC = () => {
 
                   {aiState === 'done' && aiResponse && (
                     <div className="fade-in">
-                      <AIReadingDisplay response={aiResponse} />
+                      <AIReadingDisplay response={aiResponse} readingId={readingId} />
                     </div>
                   )}
                 </div>
 
                 <div className="hero-actions" style={{ marginTop: '40px', justifyContent: 'center' }}>
                   <button onClick={reset} className="button secondary-button">Nhập lại</button>
-                  <button className="button secondary-button" disabled>Lưu vào nhật ký</button>
                 </div>
               </div>
             )}

@@ -501,3 +501,158 @@
   line-height: 1.7;
   font-size: 1.05rem;
 }
+
+/* =========================================
+   TAROT LANDING HERO VISUAL
+========================================= */
+.tarot-hero-visual {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  height: 280px;
+  margin: 0 auto 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  perspective: 1000px;
+}
+
+.tarot-hero-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 280px;
+  height: 280px;
+  background: radial-gradient(circle, rgba(218, 180, 62, 0.25) 0%, rgba(112, 66, 163, 0.15) 40%, transparent 70%);
+  border-radius: 50%;
+  filter: blur(20px);
+  animation: heroGlowPulse 4s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+.tarot-hero-deck {
+  position: relative;
+  width: 140px;
+  height: 230px;
+  z-index: 1;
+  transform-style: preserve-3d;
+  animation: heroDeckFloat 6s ease-in-out infinite alternate;
+}
+
+.tarot-hero-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  box-shadow: -5px 10px 25px rgba(0, 0, 0, 0.6), 0 0 1px rgba(218, 180, 62, 0.4) inset;
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: center center;
+}
+
+/* Fan out the 5 cards */
+.tarot-hero-card.card-0 { transform: translateX(-90px) rotate(-12deg) translateY(15px); z-index: 1; opacity: 0.85; }
+.tarot-hero-card.card-1 { transform: translateX(-45px) rotate(-6deg) translateY(5px); z-index: 2; opacity: 0.95; }
+.tarot-hero-card.card-2 { transform: translateX(0) rotate(0deg) translateY(0) scale(1.05); z-index: 5; box-shadow: 0 15px 35px rgba(0,0,0,0.7), 0 0 15px rgba(218, 180, 62, 0.3); }
+.tarot-hero-card.card-3 { transform: translateX(45px) rotate(6deg) translateY(5px); z-index: 2; opacity: 0.95; }
+.tarot-hero-card.card-4 { transform: translateX(90px) rotate(12deg) translateY(15px); z-index: 1; opacity: 0.85; }
+
+.tarot-hero-card-back {
+  width: 100%;
+  height: 100%;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #180b2d 0%, #08030f 100%);
+  border: 1px solid rgba(218, 180, 62, 0.6);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Inner gold border */
+.tarot-hero-card-back::before {
+  content: "";
+  position: absolute;
+  top: 8px; left: 8px; right: 8px; bottom: 8px;
+  border: 1px solid rgba(218, 180, 62, 0.3);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+/* Abstract star grid/diagonal pattern */
+.tarot-hero-card-back::after {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image: 
+    linear-gradient(45deg, transparent 48%, rgba(218, 180, 62, 0.05) 50%, transparent 52%),
+    linear-gradient(-45deg, transparent 48%, rgba(218, 180, 62, 0.05) 50%, transparent 52%);
+  background-size: 16px 16px;
+  pointer-events: none;
+}
+
+.tarot-hero-orbit {
+  width: 60%;
+  height: 60%;
+  border-radius: 50%;
+  border: 1px solid rgba(218, 180, 62, 0.4);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tarot-hero-orbit::before {
+  content: "✧";
+  color: rgba(218, 180, 62, 0.9);
+  font-size: 2.2rem;
+  text-shadow: 0 0 10px rgba(218, 180, 62, 0.6);
+}
+
+.tarot-hero-orbit::after {
+  content: "";
+  position: absolute;
+  width: 130%;
+  height: 130%;
+  border-radius: 50%;
+  border: 1px dashed rgba(218, 180, 62, 0.25);
+  animation: slowSpin 30s linear infinite;
+}
+
+@keyframes heroGlowPulse {
+  0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.6; }
+  100% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+}
+
+@keyframes heroDeckFloat {
+  0% { transform: translateY(0) rotateX(2deg) rotateY(-2deg); }
+  100% { transform: translateY(-12px) rotateX(-2deg) rotateY(2deg); }
+}
+
+@media (max-width: 600px) {
+  .tarot-hero-visual {
+    height: 180px;
+    margin-bottom: 30px;
+  }
+  .tarot-hero-deck {
+    width: 88px;
+    height: 145px;
+  }
+  .tarot-hero-card.card-0 { transform: translateX(-60px) rotate(-12deg) translateY(10px); }
+  .tarot-hero-card.card-1 { transform: translateX(-30px) rotate(-6deg) translateY(3px); }
+  .tarot-hero-card.card-3 { transform: translateX(30px) rotate(6deg) translateY(3px); }
+  .tarot-hero-card.card-4 { transform: translateX(60px) rotate(12deg) translateY(10px); }
+  
+  .tarot-hero-orbit::before {
+    font-size: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tarot-hero-glow { animation: none; }
+  .tarot-hero-deck { animation: none; transform: none; }
+  .tarot-hero-orbit::after { animation: none; }
+}
