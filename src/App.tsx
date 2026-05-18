@@ -17,7 +17,13 @@ const App: React.FC = () => {
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const mode = params.get('mode');
-    if (mode === 'casting') {
+    const tab = params.get('tab');
+    
+    if (tab === 'tarot' || mode === 'tarot') {
+      setActiveTab('tarot');
+    } else if (tab === 'journal') {
+      setActiveTab('journal');
+    } else if (mode === 'casting') {
       setKinhDichMode('casting');
       setActiveTab('kinhdich');
     } else if (mode === 'manual') {
@@ -26,6 +32,10 @@ const App: React.FC = () => {
     } else if (mode === 'ai-reading') {
       setKinhDichMode('ai-reading');
       setActiveTab('kinhdich');
+    } else if (tab === 'kinhdich') {
+      setActiveTab('kinhdich');
+    } else if (tab === 'home') {
+      setActiveTab('home');
     }
   }, []);
 

@@ -21,6 +21,13 @@ const Header: React.FC<HeaderProps> = ({ activeTab, setActiveTab }) => {
     e.preventDefault();
     setActiveTab(id);
     setMenuOpen(false);
+    
+    // Update URL to match tab without reloading
+    const newUrl = new URL(window.location.href);
+    newUrl.searchParams.set('tab', id);
+    newUrl.searchParams.delete('mode'); // Optional: cleanup mode if jumping to a different tab
+    window.history.pushState({}, '', newUrl.toString());
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

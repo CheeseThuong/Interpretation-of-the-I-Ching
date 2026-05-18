@@ -11,11 +11,12 @@ import type { TarotSynthesis } from '../../lib/readings/synthesis';
 import { TarotSynthesisDisplay } from '../ui/ReadingSynthesis';
 import { getZodiacSignFromDate, buildZodiacLens } from '../../lib/astrology/zodiac';
 import type { ZodiacLens } from '../../lib/astrology/zodiac';
+import TarotLandingPage from '../tarot/TarotLandingPage';
 
-type TarotStep = 'select-spread' | 'shuffle' | 'draw' | 'result';
+type TarotStep = 'landing' | 'select-spread' | 'shuffle' | 'draw' | 'result';
 
 const TarotSection: React.FC = () => {
-  const [step, setStep] = useState<TarotStep>('select-spread');
+  const [step, setStep] = useState<TarotStep>('landing');
   const [question, setQuestion] = useState('');
   const [selectedSpread, setSelectedSpread] = useState<TarotSpread | null>(null);
   
@@ -54,8 +55,22 @@ const TarotSection: React.FC = () => {
     'Direct and honest':     'Thẳng thắn và chân thật',
     'Mystical and poetic':   'Huyền bí và thi vị',
     'Practical and logical': 'Thực tế và logic',
-    'Gen Z spiritual bestie':'Bạn tâm linh kiểu Gen Z',
+    'Gen Z spiritual bestie':'Bạn tâm linh kiểu Gen Z',
   };
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const spreadId = params.get('spread');
+    if (spreadId) {
+      const spread = SPREADS.find(s => s.id === spreadId);
+      if (spread) {
+        setSelectedSpread(spread);
+        setDeck(createFreshTarotDeck());
+        setDrawnCards([]);
+        setStep('shuffle');
+      }
+    }
+  }, []);
 
   const handleSelectSpread = (spread: TarotSpread) => {
     setSelectedSpread(spread);
@@ -165,7 +180,7 @@ const TarotSection: React.FC = () => {
   };
 
   const reset = () => {
-    setStep('select-spread');
+    setStep('landing');
     setQuestion('');
     setSelectedSpread(null);
     setDeck([]);
@@ -185,6 +200,18 @@ const TarotSection: React.FC = () => {
       
       <div className="tarot-container">
         
+        {step === 'landing' && (
+          <TarotLandingPage 
+            onStart={() => setStep('select-spread')}
+            onSelectSpread={(spreadId) => {
+              const spread = SPREADS.find(s => s.id === spreadId);
+              if (spread) {
+                handleSelectSpread(spread);
+              }
+            }}
+          />
+        )}
+
         {step === 'select-spread' && (
           <div className="fade-in" style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
             <h2 style={{ color: 'var(--amber)', fontSize: '2.4rem', marginBottom: '15px', fontFamily: '"Playfair Display", serif' }}>Trải Bài Tarot</h2>
