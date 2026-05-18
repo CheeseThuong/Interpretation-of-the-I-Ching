@@ -21,6 +21,8 @@ const TarotSection: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [selectedSpread, setSelectedSpread] = useState<TarotSpread | null>(null);
   
+  const readingStartRef = React.useRef<HTMLDivElement>(null);
+  
   // Deck state
   const [deck, setDeck] = useState<TarotCard[]>([]);
   const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
@@ -56,12 +58,20 @@ const TarotSection: React.FC = () => {
     }
   }, []);
 
-  const handleSelectSpread = (spread: TarotSpread) => {
+  const handleSelectSpread = (spread: TarotSpread, e?: React.MouseEvent) => {
+    if (e && e.preventDefault) e.preventDefault();
     setSelectedSpread(spread);
     // Start with a fresh full 78-card deck (not shuffled yet — shuffle happens on handleShuffle)
     setDeck(createFreshTarotDeck());
     setDrawnCards([]);
     setStep('shuffle');
+
+    setTimeout(() => {
+      readingStartRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 50);
   };
 
   const handleShuffle = () => {
@@ -231,7 +241,7 @@ const TarotSection: React.FC = () => {
             
             <div className="spread-grid">
               {SPREADS.map(spread => (
-                <div key={spread.id} className="spread-card" onClick={() => handleSelectSpread(spread)}>
+                <div key={spread.id} className="spread-card" onClick={(e) => handleSelectSpread(spread, e)}>
                   <h3>{spread.name}</h3>
                   <p>{spread.description}</p>
                   <p style={{ color: '#a0b8ff', fontSize: '0.8rem', marginTop: '10px' }}>Số lá bài: {spread.cardCount}</p>
@@ -242,7 +252,7 @@ const TarotSection: React.FC = () => {
         )}
 
         {step === 'shuffle' && selectedSpread && (
-          <div className="fade-in" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
+          <div ref={readingStartRef} className="tarot-reading-flow fade-in" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
             <h3 style={{ color: 'var(--amber)', marginBottom: '30px', fontSize: '1.8rem', fontFamily: '"Playfair Display", serif' }}>{selectedSpread.name}</h3>
 
             <textarea

@@ -656,3 +656,7 @@
   .tarot-hero-deck { animation: none; transform: none; }
   .tarot-hero-orbit::after { animation: none; }
 }
+
+.tarot-reading-flow {
+  scroll-margin-top: 110px;
+}
