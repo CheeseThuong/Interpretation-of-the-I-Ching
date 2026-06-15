@@ -218,11 +218,14 @@ export function buildZodiacLens(sign: ZodiacSign, questionType?: string): Zodiac
   const p = ZODIAC_PROFILES[sign];
 
   // Question-type-aware psychological tendency
-  let psychologicalTendency = '';
-  if (questionType === 'love_relationship') psychologicalTendency = p.relationshipStyle;
-  else if (questionType === 'money_finance' || questionType === 'vehicle_property_asset' || questionType === 'housing_property') psychologicalTendency = `${p.moneyStyle} ${p.riskPattern}`;
-  else if (questionType === 'career_work') psychologicalTendency = p.decisionStyle;
-  else psychologicalTendency = p.emotionalStyle;
+  const psychologicalTendency =
+    questionType === 'love_relationship'
+      ? p.relationshipStyle
+      : questionType === 'money_finance' || questionType === 'vehicle_property_asset' || questionType === 'housing_property'
+        ? `${p.moneyStyle} ${p.riskPattern}`
+        : questionType === 'career_work'
+          ? p.decisionStyle
+          : p.emotionalStyle;
 
   const personalizationSummary = `Cá nhân hóa theo cung ${p.viName} (${p.element === 'fire' ? 'lửa' : p.element === 'earth' ? 'đất' : p.element === 'air' ? 'khí' : 'nước'}, ${p.modality === 'cardinal' ? 'khởi động' : p.modality === 'fixed' ? 'cố định' : 'biến đổi'}): có xu hướng ${p.strengths.slice(0,2).join(' và ')}.`;
 

@@ -76,6 +76,7 @@ export interface UnifiedAIReadingResponse {
   };
   quickSummary: string;
   synthesisSummary: string;
+  reasonedInterpretation?: string;
   positionAnalyses: TarotCardReading[];
   symbolicReading: {
     // Both
@@ -97,6 +98,14 @@ export interface UnifiedAIReadingResponse {
   
   zodiacContext?: ZodiacContext; // added back by API route if birthDate provided
   finalMessage: string;
+  qualitySelfCheck?: {
+    isContextual: boolean;
+    isTooGeneric: boolean;
+    isTooLong: boolean;
+    missingImportantInfo: string[];
+    offTopicWarnings: string[];
+    needsSecondPass: boolean;
+  };
 }
 
 // Legacy compatibility types

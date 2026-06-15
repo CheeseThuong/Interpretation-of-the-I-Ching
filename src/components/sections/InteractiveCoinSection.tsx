@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import HexagramDisplay from '../ui/HexagramDisplay';
 import CoinFlip from '../ui/CoinFlip';
 import { computeManualHexagramState } from '../../utils/hexagram';
@@ -52,13 +52,9 @@ const InteractiveCoinSection: React.FC = () => {
   const [aiResponse, setAiResponse] = useState<AIReadingResponse | null>(null);
   const [readingId, setReadingId] = useState<string | undefined>(undefined);
 
-  // Synthesis state
-  const [synthesis, setSynthesis] = useState<KinhDichSynthesis | null>(null);
-
-  // Compute synthesis whenever a new hexagram result is available
-  useEffect(() => {
-    if (!hexagramState || !metadata) return;
-    const syn = synthesizeKinhDichReading({
+  const synthesis: KinhDichSynthesis | null = useMemo(() => {
+    if (!hexagramState || !metadata) return null;
+    return synthesizeKinhDichReading({
       question:        metadata.question,
       topic:           metadata.topic,
       primaryHexagram: hexagramState.primaryInfo.name,
@@ -66,7 +62,6 @@ const InteractiveCoinSection: React.FC = () => {
       movingLines:     hexagramState.movingLines.length > 0 ? hexagramState.movingLines.join(', ') : 'Không có',
       sixLines:        hexagramState.primaryLines.join(', '),
     });
-    setSynthesis(syn);
   }, [hexagramState, metadata]);
 
   const handleStartCasting = (e: React.FormEvent) => {
@@ -137,7 +132,6 @@ const InteractiveCoinSection: React.FC = () => {
 
     setMetadata(null);
     setHexagramState(null);
-    setSynthesis(null);
     setCurrentFaces([3, 3, 3]);
     setAiState('idle');
     setAiResponse(null);
@@ -159,6 +153,7 @@ const InteractiveCoinSection: React.FC = () => {
       castingDateTime: `${metadata.localTime} ${metadata.gregorianDate}`,
       timezone: metadata.timezone,
       readingTone: 'kinhdichai_signature',
+      synthesisContext: synthesis,
       userMemorySummary: buildMemorySummaryForPrompt(
         buildUserProfileFromHistory(getLocalReadingHistory()),
         getLocalReadingHistory(5)

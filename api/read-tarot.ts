@@ -2,24 +2,92 @@ import { buildTarotReadingPrompt, buildAIFinalizerPrompt } from '../src/lib/ai/p
 import { prepareTarotReferenceContext } from '../src/lib/ai/tarotReference';
 import { prepareZodiacReferenceContext } from '../src/lib/astrology/zodiacReference';
 import { buildTarotContextBundle, validateContextBundle, generateDeterministicFallback } from '../src/lib/ai/contextBundle';
+import type { ContextTarotCard } from '../src/lib/ai/contextBundle';
+import type { UnifiedAIReadingResponse } from '../src/types/ai';
 
 const ENABLE_AI_SECOND_PASS = true;
 
-// Global memory cache for AI responses
-const aiCache = new Map<string, any>();
+interface ApiResponse {
+  status(code: number): {
+    json(payload: unknown): void;
+  };
+}
 
-function generateCacheKey(bundle: any): string {
+interface TarotApiRequest {
+  method?: string;
+  body?: {
+    question?: string;
+    topic?: string;
+    spreadType?: string;
+    drawnCards?: ContextTarotCard[];
+    birthDate?: string;
+    synthesisContext?: unknown;
+    userMemorySummary?: string;
+    tarotReferenceContext?: string;
+    zodiacReferenceContext?: string;
+    zodiacLens?: {
+      sign?: string;
+      viName?: string;
+      element?: string;
+      modality?: string;
+      personalizationSummary?: string;
+      decisionStyle?: string;
+      adviceStyle?: string;
+      psychologicalTendency?: string;
+    };
+  };
+}
+
+// Global memory cache for AI responses
+const aiCache = new Map<string, UnifiedAIReadingResponse>();
+
+function generateCacheKey(bundle: ReturnType<typeof buildTarotContextBundle>): string {
   return JSON.stringify({
     q: bundle.currentQuestion.trim().toLowerCase(),
     qt: bundle.questionContext.questionType,
     dt: bundle.questionContext.decisionType,
     st: bundle.readingData.spreadType,
-    cards: bundle.readingData.cards?.map((c: any) => `${c.name}_${c.isReversed}`) || [],
+    cards: bundle.readingData.cards?.map((c) => `${c.name || c.card?.name || ''}_${c.isReversed}`) || [],
     z: bundle.zodiacContext?.zodiacSign || ''
   });
 }
 
-export default async function handler(req: any, res: any) {
+function isWeakTarotReading(
+  result: UnifiedAIReadingResponse,
+  bundle: ReturnType<typeof buildTarotContextBundle>
+): boolean {
+  const text = [
+    result.directAnswer,
+    result.quickSummary,
+    result.synthesisSummary,
+    result.contextualInterpretation,
+    ...(result.positionAnalyses || []).map((position) => position.meaningForUserQuestion),
+  ].join(' ').toLowerCase();
+  const cards = bundle.readingData.cards || [];
+  const cardNamesMentioned = cards.filter((card) => {
+    const nameVi = (card.nameVi || card.card?.nameVi || '').toLowerCase();
+    const name = (card.name || card.card?.name || '').toLowerCase();
+    return (nameVi && text.includes(nameVi)) || (name && text.includes(name));
+  }).length;
+  const genericPhrases = [
+    'phản ánh năng lượng tình cảm',
+    'cần cân nhắc kỹ lưỡng',
+    'kiểm tra lại các thông tin',
+    'tâm lý hiện tại cần sự cân bằng',
+  ];
+  const genericHits = genericPhrases.filter((phrase) => text.includes(phrase)).length;
+  const hasEnoughPositionWork = (result.positionAnalyses?.length || 0) >= cards.length;
+
+  return (
+    !hasEnoughPositionWork ||
+    cardNamesMentioned < Math.min(cards.length, 2) ||
+    genericHits >= 2 ||
+    (result.contextualInterpretation || '').length < 80 ||
+    (result.synthesisSummary || '').length < 80
+  );
+}
+
+export default async function handler(req: TarotApiRequest, res: ApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -37,7 +105,7 @@ export default async function handler(req: any, res: any) {
     }
 
     // Reference Contexts
-    const cardNames: string[] = (data.drawnCards as Array<{ name: string }>).map(c => c.name);
+    const cardNames: string[] = (data.drawnCards || []).map(c => c.name || c.card?.name || '').filter(Boolean);
     const referenceContext = prepareTarotReferenceContext(cardNames, 3);
     let zodiacReferenceContext = '';
     if (data.zodiacLens?.sign) {
@@ -68,7 +136,7 @@ export default async function handler(req: any, res: any) {
 
     const prompt = buildTarotReadingPrompt(contextBundle);
 
-    async function callGemini(textPrompt: string) {
+    async function callGemini(textPrompt: string): Promise<UnifiedAIReadingResponse> {
       const resp = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
         {
@@ -97,7 +165,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const validation = validateContextBundle(contextBundle);
-    let structuredResult;
+    let structuredResult: UnifiedAIReadingResponse;
     let secondPassUsed = false;
     let qualityFailedReason = "N/A";
 
@@ -112,7 +180,7 @@ export default async function handler(req: any, res: any) {
         qc.needsSecondPass === true ||
         !structuredResult.directAnswer ||
         !structuredResult.contextualInterpretation
-      );
+      ) || isWeakTarotReading(structuredResult, contextBundle);
 
       if (ENABLE_AI_SECOND_PASS && needsSecondPass) {
         secondPassUsed = true;
@@ -151,7 +219,7 @@ export default async function handler(req: any, res: any) {
       console.error('Failed to process AI result:', parseError);
       return res.status(500).json({ error: 'Dữ liệu từ AI không đúng định dạng. Vui lòng thử lại.' });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error generating AI reading:', error);
     return res.status(500).json({ error: 'Không thể kết nối với AI lúc này. Vui lòng thử lại sau.' });
   }

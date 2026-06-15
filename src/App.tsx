@@ -9,36 +9,28 @@ import JournalSection from './components/sections/JournalSection';
 import Footer from './components/Footer';
 import { useScrollReveal } from './hooks/useScrollEffects';
 
+const getInitialNavigation = (): {
+  activeTab: TabType;
+  kinhDichMode: 'casting' | 'manual' | 'ai-reading';
+} => {
+  const params = new URLSearchParams(window.location.search);
+  const mode = params.get('mode');
+  const tab = params.get('tab');
+
+  if (tab === 'tarot' || mode === 'tarot') return { activeTab: 'tarot', kinhDichMode: 'casting' };
+  if (tab === 'journal') return { activeTab: 'journal', kinhDichMode: 'casting' };
+  if (mode === 'manual' || mode === 'ai-reading' || mode === 'casting') {
+    return { activeTab: 'kinhdich', kinhDichMode: mode };
+  }
+  if (tab === 'kinhdich') return { activeTab: 'kinhdich', kinhDichMode: 'casting' };
+  return { activeTab: 'home', kinhDichMode: 'casting' };
+};
+
 const App: React.FC = () => {
   useScrollReveal();
-  const [activeTab, setActiveTab] = useState<TabType>('home');
-  const [kinhDichMode, setKinhDichMode] = useState<'casting' | 'manual' | 'ai-reading'>('casting');
-
-  // Handle URL query parameters for deep-linking
-  React.useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const mode = params.get('mode');
-    const tab = params.get('tab');
-    
-    if (tab === 'tarot' || mode === 'tarot') {
-      setActiveTab('tarot');
-    } else if (tab === 'journal') {
-      setActiveTab('journal');
-    } else if (mode === 'casting') {
-      setKinhDichMode('casting');
-      setActiveTab('kinhdich');
-    } else if (mode === 'manual') {
-      setKinhDichMode('manual');
-      setActiveTab('kinhdich');
-    } else if (mode === 'ai-reading') {
-      setKinhDichMode('ai-reading');
-      setActiveTab('kinhdich');
-    } else if (tab === 'kinhdich') {
-      setActiveTab('kinhdich');
-    } else if (tab === 'home') {
-      setActiveTab('home');
-    }
-  }, []);
+  const [initialNavigation] = useState(getInitialNavigation);
+  const [activeTab, setActiveTab] = useState<TabType>(initialNavigation.activeTab);
+  const [kinhDichMode, setKinhDichMode] = useState<'casting' | 'manual' | 'ai-reading'>(initialNavigation.kinhDichMode);
 
   const handleCastingClick = () => {
     setKinhDichMode('casting');

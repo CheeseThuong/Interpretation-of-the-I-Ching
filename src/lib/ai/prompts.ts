@@ -1,4 +1,4 @@
-import type { ContextBundle } from './contextBundle';
+import type { ContextBundle, ContextTarotCard } from './contextBundle';
 
 /**
  * LAYER 1: Question Context Understanding
@@ -46,7 +46,9 @@ export function classifyQuestionContext(
 
   // Timeframe detection
   let timeframe: string | undefined;
-  if (/tuần sau|tuần tới/.test(q))        timeframe = 'tuần sau';
+  const monthMatch = q.match(/(?:trong|từ|khoảng|khoảng thời gian từ)?\s*(\d+|một|hai|ba|bốn|năm|sáu)\s*tháng/);
+  if (monthMatch) timeframe = `${monthMatch[1]} tháng tới`;
+  else if (/tuần sau|tuần tới/.test(q))        timeframe = 'tuần sau';
   else if (/tuần này/.test(q))             timeframe = 'tuần này';
   else if (/tháng sau|tháng tới/.test(q)) timeframe = 'tháng sau';
   else if (/tháng này/.test(q))           timeframe = 'tháng này';
@@ -160,12 +162,23 @@ You must form a contextual interpretation from:
 7. HuggingFace references if available
 
 Do not copy reference data. Do not answer from generic card/hexagram meanings alone. Every section must answer: “What does this mean for the user’s exact question?”
+- Tarot basis: use the Rider-Waite-Smith visual system and A. E. Waite-style symbolic correspondences as background only; combine them with the app's card data, spread position, orientation, timeframe, and user's wording.
 - Do not write long generic paragraphs.
 - Prefer useful sections.
 - For practical questions, include concrete checklist.
 - For love questions, discuss emotional signals, communication, boundaries.
 Giọng điệu: ${KINHDICHAI_SIGNATURE_VOICE}
 `;
+
+function formatPromptValue(value: unknown, fallback = 'Không có'): string {
+  if (value === undefined || value === null || value === '') return fallback;
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
 
 export function buildKinhDichReadingPrompt(context: ContextBundle): string {
   const qCtx = context.questionContext;
@@ -181,7 +194,7 @@ THỨ TỰ ƯU TIÊN PHÂN TÍCH:
    - Quẻ chủ: ${context.readingData.hexagram?.primary || ''}
    - Hào động: ${context.readingData.hexagram?.movingLines || ''}
    - Quẻ biến: ${context.readingData.hexagram?.changed || ''}
-4. Tổng hợp hệ thống (synthesis): ${context.synthesis || 'Không có'}
+4. Tổng hợp hệ thống (synthesis): ${formatPromptValue(context.synthesis)}
 5. Lịch sử trí nhớ (user memory): ${context.userMemorySummary || 'Không có'}
 
 NHIỆM VỤ CỦA BẠN:
@@ -234,9 +247,21 @@ export function buildTarotReadingPrompt(context: ContextBundle): string {
   const qCtx = context.questionContext;
   
   const cardsStr = (context.readingData.cards || [])
-    .map((c: any) => `Vị trí: ${c.position || c.positionName || 'Vị trí'}
-Lá bài: ${c.nameVi || c.card?.nameVi} (${c.name || c.card?.name})
-Trạng thái: ${c.isReversed ? 'Ngược (Reversed)' : 'Xuôi (Upright)'}`.trim())
+    .map((c: ContextTarotCard) => {
+      const isReversed = !!c.isReversed;
+      const keywords = isReversed
+        ? (c.keywordsReversed || c.card?.keywordsReversed || [])
+        : (c.keywordsUpright || c.card?.keywordsUpright || []);
+      const meaning = isReversed
+        ? (c.meaningReversed || c.card?.meaningReversed || '')
+        : (c.meaningUpright || c.card?.meaningUpright || '');
+
+      return `Vị trí: ${c.position || c.positionName || 'Vị trí'}
+Lá bài: ${c.nameVi || c.card?.nameVi || c.name || c.card?.name || 'Không rõ'} (${c.name || c.card?.name || c.nameVi || c.card?.nameVi || 'Không rõ'})
+Trạng thái: ${isReversed ? 'Ngược (Reversed)' : 'Xuôi (Upright)'}
+Từ khóa theo trạng thái: ${keywords.join(', ') || 'Không có'}
+Nghĩa dữ liệu nội bộ: ${meaning || 'Không có'}`.trim();
+    })
     .join('\n\n');
 
   return `
@@ -249,14 +274,16 @@ THỨ TỰ ƯU TIÊN PHÂN TÍCH:
 3. Các lá bài được rút:
 ${cardsStr}
 4. Chức năng từng vị trí trong trải bài (nếu có): ${context.readingData.spreadType || 'Không xác định'}
-5. Tổng hợp hệ thống (synthesis): ${context.synthesis || 'Không có'}
+5. Tổng hợp hệ thống (synthesis): ${formatPromptValue(context.synthesis)}
 6. Lịch sử trí nhớ (user memory): ${context.userMemorySummary || 'Không có'}
-7. Lăng kính cung hoàng đạo: ${JSON.stringify(context.zodiacContext || 'Không có')}
+7. Lăng kính cung hoàng đạo: ${formatPromptValue(context.zodiacContext)}
 8. Dữ liệu tham khảo Tarot: ${context.tarotReferenceContext || 'Không có'}
 
 NHIỆM VỤ CỦA BẠN:
 - Phân tích ý nghĩa từng lá bài kết hợp với chức năng của vị trí đó trong trải bài (combine card + position + orientation + question context). Chú ý tính xuôi/ngược.
 - Liên kết trực tiếp kết quả với câu hỏi. Không giải nghĩa lá bài một cách chung chung.
+- Nếu câu hỏi có mốc thời gian, phải chia diễn giải theo nhịp thời gian đó; không được chỉ nói "chờ thêm" nếu lá kết quả có xu hướng tích cực.
+- Mỗi field positionAnalyses[*].meaningForUserQuestion phải nêu rõ: lá này nói gì về vị trí đó, ảnh hưởng gì tới câu hỏi, và điều kiện nào làm kết quả tốt/xấu hơn.
 - Tích hợp thông tin từ Lăng kính cung hoàng đạo và Lịch sử trí nhớ nếu có, để tạo lời khuyên cá nhân hóa.
 - Dữ liệu tham khảo (HuggingFace) chỉ để hỗ trợ, không copy trực tiếp.
 
@@ -310,7 +337,7 @@ YÊU CẦU ĐẦU RA (JSON format only):
 `.trim();
 }
 
-export function buildAIQualityReviewPrompt(context: ContextBundle, draftAnswer: any): string {
+export function buildAIQualityReviewPrompt(context: ContextBundle, draftAnswer: unknown): string {
   return `
 Review the following draft interpretation for a ${context.readingData.type} reading.
 Question: "${context.currentQuestion}"
@@ -322,7 +349,7 @@ Perform a quality check and decide if it needs a second pass.
 `.trim();
 }
 
-export function buildAIFinalizerPrompt(context: ContextBundle, draftAnswer: any, review?: any): string {
+export function buildAIFinalizerPrompt(context: ContextBundle, draftAnswer: unknown, review?: unknown): string {
   return `
 Bạn là một biên tập viên AI. 
 Hãy viết lại bản nháp giải luận Tarot/Kinh Dịch này thành một câu trả lời cuối cùng sắc bén hơn.

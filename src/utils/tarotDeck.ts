@@ -47,6 +47,125 @@ const SUIT_VI: Record<string, string> = {
   Wands: 'Gậy', Cups: 'Chén', Swords: 'Kiếm', Pentacles: 'Đồng Tiền',
 };
 
+const SUIT_THEME: Record<typeof SUITS[number], {
+  domain: string;
+  uprightFocus: string;
+  reversedFocus: string;
+}> = {
+  Wands: {
+    domain: 'động lực, ham muốn, sáng tạo và nhịp hành động',
+    uprightFocus: 'chủ động, nhiệt huyết và dám mở đường',
+    reversedFocus: 'nóng vội, cạn năng lượng hoặc hành động thiếu hướng',
+  },
+  Cups: {
+    domain: 'cảm xúc, tình yêu, trực giác và sự kết nối',
+    uprightFocus: 'mở lòng, cảm thông và nuôi dưỡng cảm xúc',
+    reversedFocus: 'cảm xúc tắc nghẽn, kỳ vọng mơ hồ hoặc thiếu ranh giới',
+  },
+  Swords: {
+    domain: 'suy nghĩ, giao tiếp, sự thật và quyết định',
+    uprightFocus: 'nhìn thẳng sự thật, nói rõ và chọn bằng lý trí',
+    reversedFocus: 'rối trí, tránh né đối thoại hoặc tự làm đau bằng suy diễn',
+  },
+  Pentacles: {
+    domain: 'an toàn, giá trị, tiền bạc, thân thể và cam kết thực tế',
+    uprightFocus: 'ổn định, xây nền và kiểm chứng bằng hành động cụ thể',
+    reversedFocus: 'bám giữ, thiếu an toàn, lệ thuộc hoặc mất nhịp thực tế',
+  },
+};
+
+const RANK_THEME: Record<number, {
+  keywordsUpright: string[];
+  keywordsReversed: string[];
+  upright: string;
+  reversed: string;
+}> = {
+  1: {
+    keywordsUpright: ['Khởi đầu', 'Cơ hội', 'Hạt giống mới'],
+    keywordsReversed: ['Chậm khởi động', 'Cơ hội chưa chín', 'Thiếu tin tưởng'],
+    upright: 'mở ra một hạt giống mới cần được nhận ra và nuôi dưỡng đúng lúc',
+    reversed: 'cho thấy cơ hội có thật nhưng chưa đủ điều kiện, hoặc người hỏi chưa sẵn sàng đón nhận',
+  },
+  2: {
+    keywordsUpright: ['Cân bằng', 'Lựa chọn', 'Điều phối'],
+    keywordsReversed: ['Dao động', 'Quá tải', 'Thiếu ưu tiên'],
+    upright: 'đòi hỏi cân bằng giữa hai phía, hai nhu cầu hoặc hai nhịp phát triển',
+    reversed: 'cho thấy sự dao động và cần giảm nhiễu trước khi chọn hướng',
+  },
+  3: {
+    keywordsUpright: ['Tăng trưởng', 'Hợp tác', 'Mở rộng'],
+    keywordsReversed: ['Thiếu phối hợp', 'Chậm tiến', 'Kỳ vọng lệch'],
+    upright: 'đưa tình huống sang giai đoạn hợp tác, biểu lộ hoặc phát triển rõ hơn',
+    reversed: 'cho thấy sự phối hợp chưa ăn khớp hoặc kỳ vọng của các bên chưa cùng nhịp',
+  },
+  4: {
+    keywordsUpright: ['Ổn định', 'Giữ gìn', 'Ranh giới'],
+    keywordsReversed: ['Bám giữ', 'Nới kiểm soát', 'Sợ mất an toàn'],
+    upright: 'nhấn mạnh nhu cầu ổn định, ranh giới và bảo vệ điều đã có',
+    reversed: 'cho thấy việc bám quá chặt, sợ mất an toàn, hoặc đang buộc phải học cách nới kiểm soát',
+  },
+  5: {
+    keywordsUpright: ['Xung đột', 'Thử thách', 'Bất ổn'],
+    keywordsReversed: ['Hạ nhiệt', 'Tránh xung đột', 'Học từ va chạm'],
+    upright: 'đưa ra một điểm căng cần đối diện thay vì phủ nhận',
+    reversed: 'cho thấy xung đột đang hạ nhiệt nhưng vẫn cần xử lý gốc rễ',
+  },
+  6: {
+    keywordsUpright: ['Trao nhận', 'Hòa giải', 'Tiến triển'],
+    keywordsReversed: ['Mất cân bằng', 'Một chiều', 'Nợ cảm xúc'],
+    upright: 'nói về sự trao nhận, hòa giải và khả năng tiến lên khi hai bên cùng góp phần',
+    reversed: 'nhắc tới cán cân lệch, cho nhiều hơn nhận hoặc nhận mà không đáp lại',
+  },
+  7: {
+    keywordsUpright: ['Đánh giá', 'Kiên trì', 'Phòng thủ'],
+    keywordsReversed: ['Nghi ngờ', 'Mệt mỏi', 'Sai chiến lược'],
+    upright: 'yêu cầu kiên trì nhưng cũng phải đánh giá lại chiến lược',
+    reversed: 'cho thấy sự mệt mỏi, nghi ngờ hoặc cách tiếp cận hiện tại chưa hiệu quả',
+  },
+  8: {
+    keywordsUpright: ['Nỗ lực', 'Chuyển động', 'Rèn luyện'],
+    keywordsReversed: ['Tắc tiến độ', 'Lặp lỗi', 'Vội vàng'],
+    upright: 'đẩy tình huống vào nhịp chuyển động, học hỏi hoặc cải thiện có kỷ luật',
+    reversed: 'cảnh báo tiến độ bị kẹt, lặp lại lỗi cũ hoặc vội vàng mà thiếu chất lượng',
+  },
+  9: {
+    keywordsUpright: ['Độc lập', 'Đỉnh điểm', 'Tự chủ'],
+    keywordsReversed: ['Cô lập', 'Thiếu thỏa mãn', 'Phòng vệ'],
+    upright: 'cho thấy thành quả cá nhân, sự tự chủ hoặc một cảm xúc đã gần đến đỉnh',
+    reversed: 'cho thấy sự cô lập, phòng vệ hoặc thành quả chưa đem lại cảm giác đủ đầy',
+  },
+  10: {
+    keywordsUpright: ['Hoàn tất', 'Gánh nặng', 'Chu kỳ'],
+    keywordsReversed: ['Buông bớt', 'Quá tải', 'Chưa khép lại'],
+    upright: 'đưa một chu kỳ đến điểm đầy đủ, cần nhìn cả thành quả lẫn gánh nặng',
+    reversed: 'cho thấy cần buông bớt gánh nặng hoặc khép lại điều kéo dài quá lâu',
+  },
+  11: {
+    keywordsUpright: ['Tin nhắn', 'Tò mò', 'Bước đầu'],
+    keywordsReversed: ['Non nớt', 'Tin chưa rõ', 'Thiếu ổn định'],
+    upright: 'mở ra tín hiệu ban đầu, lời nhắn hoặc sự tò mò cần được kiểm chứng',
+    reversed: 'cho thấy tín hiệu chưa trưởng thành, dễ đổi hướng hoặc thiếu cam kết',
+  },
+  12: {
+    keywordsUpright: ['Hành động', 'Theo đuổi', 'Dịch chuyển'],
+    keywordsReversed: ['Bốc đồng', 'Chậm trễ', 'Thiếu nhất quán'],
+    upright: 'đưa năng lượng vào chuyển động, theo đuổi và thử nghiệm',
+    reversed: 'cảnh báo sự bốc đồng, thất thường hoặc thiếu nhất quán',
+  },
+  13: {
+    keywordsUpright: ['Nuôi dưỡng', 'Trưởng thành', 'Cảm nhận sâu'],
+    keywordsReversed: ['Lệ thuộc', 'Quá kiểm soát', 'Cạn cảm xúc'],
+    upright: 'đại diện cho cách tiếp cận chín chắn, biết nuôi dưỡng và cảm nhận sâu',
+    reversed: 'cho thấy sự lệ thuộc, kiểm soát quá mức hoặc cạn năng lượng chăm sóc',
+  },
+  14: {
+    keywordsUpright: ['Làm chủ', 'Trách nhiệm', 'Định hướng'],
+    keywordsReversed: ['Cứng nhắc', 'Lạm quyền', 'Thiếu trách nhiệm'],
+    upright: 'đòi hỏi sự làm chủ, định hướng rõ và hành động có trách nhiệm',
+    reversed: 'cảnh báo sự cứng nhắc, né trách nhiệm hoặc dùng quyền kiểm soát sai cách',
+  },
+};
+
 const MINOR_VALUES = [
   { v: 1, name: 'Ace', nameVi: 'Át' },
   { v: 2, name: 'Two', nameVi: 'Hai' },
@@ -68,12 +187,23 @@ function slugify(s: string): string {
   return s.toLowerCase().replace(/\s+/g, '-');
 }
 
+function publicAssetPath(path: string): string {
+  const base = import.meta.env.BASE_URL || '/';
+  return `${base.replace(/\/?$/, '/')}${path.replace(/^\//, '')}`;
+}
+
+function tarotImage(slug: string): string {
+  return publicAssetPath(`/tarot/rws/${slug}.jpg`);
+}
+
 function buildMinorArcana(): TarotCard[] {
   const cards: TarotCard[] = [];
   SUITS.forEach((suit) => {
     MINOR_VALUES.forEach(({ v, name, nameVi }) => {
       const fullName = `${name} of ${suit}`;
       const slug = slugify(fullName);
+      const suitTheme = SUIT_THEME[suit];
+      const rankTheme = RANK_THEME[v];
       cards.push({
         id: `${suit[0].toLowerCase()}${String(v).padStart(2, '0')}`,
         name: fullName,
@@ -81,12 +211,12 @@ function buildMinorArcana(): TarotCard[] {
         suit,
         value: v,
         imageSlug: slug,
-        image: `/tarot/rws/${slug}.jpg`,
+        image: tarotImage(slug),
         symbol: '◆',
-        keywordsUpright: ['Năng lượng', 'Hành động', 'Biểu tượng'],
-        keywordsReversed: ['Trì trệ', 'Mất cân bằng', 'Thách thức'],
-        meaningUpright: `${fullName} mang năng lượng của ${suit} — tập trung vào hành động và ý chí.`,
-        meaningReversed: `${fullName} ngược — cần xem xét lại hướng đi và cân bằng nội tâm.`,
+        keywordsUpright: [...rankTheme.keywordsUpright, suitTheme.uprightFocus],
+        keywordsReversed: [...rankTheme.keywordsReversed, suitTheme.reversedFocus],
+        meaningUpright: `${nameVi} ${SUIT_VI[suit]} trong hệ ${suitTheme.domain} ${rankTheme.upright}. Trong trải bài, lá này khuyên nhìn vào bằng chứng cụ thể và cách năng lượng đang được trao đổi.`,
+        meaningReversed: `${nameVi} ${SUIT_VI[suit]} ngược trong hệ ${suitTheme.domain} ${rankTheme.reversed}. Cần nhận diện điểm kẹt thực tế trước khi kết luận hoặc hành động.`,
       });
     });
   });
@@ -125,5 +255,8 @@ export const FULL_TAROT_DECK: TarotCard[] = [
 
 /** Create a fresh copy of the full 78-card deck (never mutates the original) */
 export function createFreshTarotDeck(): TarotCard[] {
-  return [...FULL_TAROT_DECK];
+  return FULL_TAROT_DECK.map((card) => ({
+    ...card,
+    image: tarotImage(card.imageSlug),
+  }));
 }

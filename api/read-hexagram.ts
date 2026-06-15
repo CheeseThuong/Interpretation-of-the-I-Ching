@@ -1,12 +1,33 @@
 import { buildKinhDichReadingPrompt, buildAIFinalizerPrompt } from '../src/lib/ai/prompts';
 import { buildKinhDichContextBundle, validateContextBundle, generateDeterministicFallback } from '../src/lib/ai/contextBundle';
+import type { UnifiedAIReadingResponse } from '../src/types/ai';
 
 const ENABLE_AI_SECOND_PASS = true;
 
-// Global memory cache for AI responses
-const aiCache = new Map<string, any>();
+interface ApiResponse {
+  status(code: number): {
+    json(payload: unknown): void;
+  };
+}
 
-function generateCacheKey(bundle: any): string {
+interface HexagramApiRequest {
+  method?: string;
+  body?: {
+    question?: string;
+    topic?: string;
+    primaryHexagram?: string;
+    changedHexagram?: string;
+    movingLines?: string | number[];
+    sixLines?: string | number[];
+    synthesisContext?: unknown;
+    userMemorySummary?: string;
+  };
+}
+
+// Global memory cache for AI responses
+const aiCache = new Map<string, UnifiedAIReadingResponse>();
+
+function generateCacheKey(bundle: ReturnType<typeof buildKinhDichContextBundle>): string {
   return JSON.stringify({
     q: bundle.currentQuestion.trim().toLowerCase(),
     qt: bundle.questionContext.questionType,
@@ -17,7 +38,7 @@ function generateCacheKey(bundle: any): string {
   });
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: HexagramApiRequest, res: ApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -46,7 +67,7 @@ export default async function handler(req: any, res: any) {
 
     const prompt = buildKinhDichReadingPrompt(contextBundle);
 
-    async function callGemini(textPrompt: string) {
+    async function callGemini(textPrompt: string): Promise<UnifiedAIReadingResponse> {
       const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -72,7 +93,7 @@ export default async function handler(req: any, res: any) {
     }
 
     const validation = validateContextBundle(contextBundle);
-    let structuredResult;
+    let structuredResult: UnifiedAIReadingResponse;
     let secondPassUsed = false;
     let qualityFailedReason = "N/A";
 
@@ -121,7 +142,7 @@ export default async function handler(req: any, res: any) {
       console.error('Failed to process AI result:', parseError);
       return res.status(500).json({ error: 'Dữ liệu từ AI không đúng định dạng. Vui lòng thử lại.' });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error generating AI reading:', error);
     return res.status(500).json({ error: 'Không thể kết nối với AI lúc này. Vui lòng thử lại sau.' });
   }

@@ -1,3 +1,5 @@
+import type { UnifiedAIReadingResponse } from '../../types/ai';
+
 export interface SavedReading {
   id: string;
   type: 'tarot' | 'iching';
@@ -16,8 +18,8 @@ export interface SavedReading {
     changed?: string;
     movingLines?: number[];
   };
-  synthesis?: any;
-  aiAnswer?: any;
+  synthesis?: unknown;
+  aiAnswer?: UnifiedAIReadingResponse;
   createdAt: string;
   feedback?: {
     helpful?: boolean;
@@ -25,6 +27,10 @@ export interface SavedReading {
     tooGeneric?: boolean;
     note?: string;
   };
+}
+
+export interface MemorySettings {
+  enabled: boolean;
 }
 
 const STORAGE_KEY = 'kinhdichai_local_readings';
@@ -82,7 +88,7 @@ export function saveReadingFeedback(readingId: string, feedback: SavedReading['f
   }
 }
 
-export function getMemorySettings(): any {
+export function getMemorySettings(): MemorySettings {
   try {
     const data = localStorage.getItem(SETTINGS_KEY);
     return data ? JSON.parse(data) : { enabled: true };
@@ -91,6 +97,6 @@ export function getMemorySettings(): any {
   }
 }
 
-export function updateMemorySettings(settings: any): void {
+export function updateMemorySettings(settings: MemorySettings): void {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }

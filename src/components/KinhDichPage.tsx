@@ -11,18 +11,11 @@ interface KinhDichPageProps {
 }
 
 const KinhDichPage: React.FC<KinhDichPageProps> = ({ defaultMode = 'casting', onModeChange }) => {
-  const [kdTab, setKdTab] = useState<'casting' | 'manual' | 'ai-reading'>(defaultMode);
-
-  // Sync state with prop if it changes externally (e.g. from homepage hero button)
-  React.useEffect(() => {
-    // Only update if it's a valid mode
-    if (defaultMode === 'casting' || defaultMode === 'manual' || defaultMode === 'ai-reading') {
-      setKdTab(defaultMode);
-    }
-  }, [defaultMode]);
+  const [internalTab, setInternalTab] = useState<'casting' | 'manual' | 'ai-reading'>(defaultMode);
+  const kdTab = onModeChange ? defaultMode : internalTab;
 
   const handleTabChange = (newTab: 'casting' | 'manual' | 'ai-reading') => {
-    setKdTab(newTab);
+    setInternalTab(newTab);
     if (onModeChange) onModeChange(newTab);
     
     // Also update URL for consistency if user manually switches tabs

@@ -13,24 +13,32 @@ import type { ZodiacLens } from '../../lib/astrology/zodiac';
 import TarotLandingPage from '../tarot/TarotLandingPage';
 import { saveReadingToLocalMemory, getLocalReadingHistory } from '../../lib/memory/localReadingMemory';
 import { buildUserProfileFromHistory, buildMemorySummaryForPrompt } from '../../lib/memory/userProfile';
+import type { UnifiedAIReadingResponse } from '../../types/ai';
 
 type TarotStep = 'landing' | 'select-spread' | 'shuffle' | 'draw' | 'result';
 
+const getInitialSpread = (): TarotSpread | null => {
+  const params = new URLSearchParams(window.location.search);
+  const spreadId = params.get('spread');
+  return SPREADS.find((spread) => spread.id === spreadId) ?? null;
+};
+
 const TarotSection: React.FC = () => {
-  const [step, setStep] = useState<TarotStep>('landing');
+  const [initialSpread] = useState(getInitialSpread);
+  const [step, setStep] = useState<TarotStep>(initialSpread ? 'shuffle' : 'landing');
   const [question, setQuestion] = useState('');
-  const [selectedSpread, setSelectedSpread] = useState<TarotSpread | null>(null);
+  const [selectedSpread, setSelectedSpread] = useState<TarotSpread | null>(initialSpread);
   
   const readingStartRef = React.useRef<HTMLDivElement>(null);
   
   // Deck state
-  const [deck, setDeck] = useState<TarotCard[]>([]);
+  const [deck, setDeck] = useState<TarotCard[]>(() => (initialSpread ? createFreshTarotDeck() : []));
   const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
   const [isShuffling, setIsShuffling] = useState(false);
   
   // AI Reading State
   const [aiState, setAiState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const [aiResponse, setAiResponse] = useState<any>(null);
+  const [aiResponse, setAiResponse] = useState<UnifiedAIReadingResponse | null>(null);
   const [readingId, setReadingId] = useState<string | undefined>(undefined);
 
   // Animation state
@@ -43,20 +51,6 @@ const TarotSection: React.FC = () => {
   // Zodiac state
   const [birthDate, setBirthDate] = useState('');
   const [zodiacLens, setZodiacLens] = useState<ZodiacLens | null>(null);
-
-  React.useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const spreadId = params.get('spread');
-    if (spreadId) {
-      const spread = SPREADS.find(s => s.id === spreadId);
-      if (spread) {
-        setSelectedSpread(spread);
-        setDeck(createFreshTarotDeck());
-        setDrawnCards([]);
-        setStep('shuffle');
-      }
-    }
-  }, []);
 
   const handleSelectSpread = (spread: TarotSpread, e?: React.MouseEvent) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -139,6 +133,8 @@ const TarotSection: React.FC = () => {
         nameVi: dc.card.nameVi,
         position: dc.positionName,
         isReversed: dc.isReversed,
+        keywordsUpright: dc.card.keywordsUpright,
+        keywordsReversed: dc.card.keywordsReversed,
         meaningUpright: dc.card.meaningUpright,
         meaningReversed: dc.card.meaningReversed
       })),
@@ -155,7 +151,7 @@ const TarotSection: React.FC = () => {
     };
 
     try {
-      let finalRes: any;
+      let finalRes: UnifiedAIReadingResponse;
       try {
         const response = await fetch('/api/read-tarot', {
           method: 'POST',
@@ -165,7 +161,7 @@ const TarotSection: React.FC = () => {
 
         if (!response.ok) throw new Error('Real API failed');
         finalRes = await response.json();
-      } catch (err) {
+      } catch {
         console.warn('Fallback to mock Tarot AI');
         finalRes = await mockAITarotReading(question, drawnCards, 'kinhdichai_signature');
       }
@@ -320,7 +316,7 @@ const TarotSection: React.FC = () => {
               {zodiacLens && (
                 <div style={{ marginTop: '10px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', fontSize: '0.82rem', color: 'rgba(167,139,250,0.9)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span>&#9885;</span>
-                  <span>Cung {zodiacLens.viName} ({zodiacLens.sign}) — {zodiacLens.element === 'fire' ? 'Lửa' : zodiacLens.element === 'earth' ? 'Đất' : zodiacLens.element === 'air' ? 'Khí' : 'Nước'}</span>
+                  <span>Cung {zodiacLens.viName} ({zodiacLens.sign}) - {zodiacLens.element === 'fire' ? 'Lửa' : zodiacLens.element === 'earth' ? 'Đất' : zodiacLens.element === 'air' ? 'Khí' : 'Nước'}</span>
                 </div>
               )}
             </div>
@@ -386,6 +382,7 @@ const TarotSection: React.FC = () => {
                           <img 
                             src={dc.card.image} 
                             alt={dc.card.name}
+                            decoding="async"
                             onError={(e) => {
                               // Hide broken image and show fallback
                               e.currentTarget.style.display = 'none';
@@ -429,6 +426,7 @@ const TarotSection: React.FC = () => {
                             <img 
                               src={dc.card.image} 
                               alt={dc.card.name}
+                              decoding="async"
                               onError={(e) => {
                                 // Hide broken image and show fallback
                                 e.currentTarget.style.display = 'none';

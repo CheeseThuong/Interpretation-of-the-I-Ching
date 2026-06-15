@@ -9,6 +9,7 @@ import type { AIReadingResponse } from '../../utils/mockAI';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
 import { saveReadingToLocalMemory, getLocalReadingHistory } from '../../lib/memory/localReadingMemory';
 import { buildUserProfileFromHistory, buildMemorySummaryForPrompt } from '../../lib/memory/userProfile';
+import { synthesizeKinhDichReading } from '../../lib/readings/synthesis';
 
 const TOPICS = [
   'Tình yêu / Love',
@@ -38,7 +39,7 @@ const CoinSection: React.FC = () => {
 
   // AI states
   const [aiState, setAiState] = useState<'idle' | 'loading' | 'done'>('idle');
-  const [aiResponse, setAiResponse] = useState<any>(null);
+  const [aiResponse, setAiResponse] = useState<AIReadingResponse | null>(null);
   const [readingId, setReadingId] = useState<string | undefined>(undefined);
 
   const handleUpdateLine = (index: number, value: number) => {
@@ -84,6 +85,15 @@ const CoinSection: React.FC = () => {
   const handleGetAIReading = async () => {
     if (!hexagramState || !metadata) return;
     setAiState('loading');
+
+    const synthesisContext = synthesizeKinhDichReading({
+      question: metadata.question,
+      topic: metadata.topic,
+      primaryHexagram: hexagramState.primaryInfo.name,
+      changedHexagram: hexagramState.changedInfo.name,
+      movingLines: hexagramState.movingLines.length > 0 ? hexagramState.movingLines.join(', ') : 'Không có',
+      sixLines: hexagramState.primaryLines.join(', '),
+    });
     
     const payload = {
       question: metadata.question,
@@ -97,6 +107,7 @@ const CoinSection: React.FC = () => {
       timezone: metadata.timezone,
       readingTone: 'kinhdichai_signature',
       method: 'manual-real-life',
+      synthesisContext,
       userMemorySummary: buildMemorySummaryForPrompt(
         buildUserProfileFromHistory(getLocalReadingHistory()),
         getLocalReadingHistory(5)
@@ -135,6 +146,7 @@ const CoinSection: React.FC = () => {
           changed: hexagramState.changedInfo.name,
           movingLines: hexagramState.movingLines
         },
+        synthesis: synthesisContext,
         aiAnswer: finalRes
       });
       setReadingId(id);

@@ -1,17 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { getLocalReadingHistory, deleteReadingFromLocalMemory, clearLocalReadingHistory } from '../../lib/memory/localReadingMemory';
 import type { SavedReading } from '../../lib/memory/localReadingMemory';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
 
 const JournalSection: React.FC = () => {
-  const [history, setHistory] = useState<SavedReading[]>([]);
+  const [history, setHistory] = useState<SavedReading[]>(getLocalReadingHistory);
   const [filter, setFilter] = useState<'all' | 'tarot' | 'iching'>('all');
   const [search, setSearch] = useState('');
   const [selectedReading, setSelectedReading] = useState<SavedReading | null>(null);
-
-  useEffect(() => {
-    loadHistory();
-  }, []);
 
   const loadHistory = () => {
     setHistory(getLocalReadingHistory());

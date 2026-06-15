@@ -14,15 +14,9 @@ const CoinFlip: React.FC<CoinFlipProps> = ({ faces, isFlipping, flipId }) => {
     <div className="coin-flip-container">
       {[0, 1, 2].map((idx) => {
         const isYang = safeFaces[idx] === 3;
-        
-        let animationClass = '';
-        if (isFlipping) {
-          animationClass = isYang ? 'flipping-yang' : 'flipping-yin';
-        } else if (faces.length === 3) {
-          animationClass = isYang ? 'show-yang' : 'show-yin';
-        } else {
-          animationClass = 'show-yang'; // Default idle state
-        }
+        const animationClass = isFlipping
+          ? (isYang ? 'flipping-yang' : 'flipping-yin')
+          : (faces.length === 3 ? (isYang ? 'show-yang' : 'show-yin') : 'show-yang');
 
         return (
           <div key={idx} className="coin-3d-wrapper">
