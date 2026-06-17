@@ -71,6 +71,7 @@ function buildPositionAnalysis(
   const posFunc = meta?.functionDescription ?? `Vị trí "${posLabel}" trong trải bài.`;
   const focusArr = meta?.interpretationFocus ?? [];
   const focus = focusArr.slice(0, 2).join(', ');
+  const activeMeaning = dc.isReversed ? dc.card.meaningReversed : dc.card.meaningUpright;
 
   /* meaning in position */
   const meaningInThisPosition = dc.isReversed
@@ -81,15 +82,15 @@ function buildPositionAnalysis(
   const pl = posLabel.toLowerCase();
   const meaningForUserQuestion =
     pl.includes('tình huống') || pl.includes('hiện tại') || pl.includes('present')
-      ? `Liên quan đến "${question}": ${dc.card.nameVi} ${orient} cho thấy bạn đang ở trạng thái ${kw2}. Đây là nền tảng năng lượng bạn mang vào tình huống này.`
+      ? `Liên quan đến "${question}": ${dc.card.nameVi} ${orient} cho thấy nền hiện tại là ${kw2}. ${activeMeaning}`
     : pl.includes('cản trở') || pl.includes('obstacle')
-      ? `Liên quan đến "${question}": Trở ngại hiện tại là ${kw2}. ${dc.isReversed ? 'Sự chặn đứng này đang làm chậm quá trình tiến triển.' : 'Đây là lực cản cần nhận diện và xử lý.'}`
+      ? `Liên quan đến "${question}": ${dc.card.nameVi} ở vị trí cản trở không có nghĩa lá này "xấu"; nó chỉ ra điểm đang bị thiếu, bị đẩy quá mức hoặc chưa được dùng đúng cách. Trọng tâm cần xử lý là ${kw2}. ${dc.isReversed ? 'Sự chặn đứng này đang làm chậm quá trình tiến triển.' : 'Hãy xem mặt sáng của lá bài này có đang trở thành kỳ vọng, áp lực hoặc điểm mù không.'}`
     : pl.includes('che khuất') || pl.includes('ẩn') || pl.includes('hidden')
-      ? `Liên quan đến "${question}": Điều bạn chưa nhìn rõ là ${kw2}. ${dc.isReversed ? 'Rủi ro này đang chìm — cần làm sáng tỏ trước khi quyết định.' : 'Đây là tiềm năng hoặc thông tin quan trọng bị bỏ sót.'}`
+      ? `Liên quan đến "${question}": phần chưa được nhìn thẳng là ${kw2}. ${dc.isReversed ? 'Đây là rủi ro chìm hoặc điều đang bị trì hoãn.' : 'Đây có thể là thông tin, cảm xúc hoặc động cơ đang vận hành phía sau bề mặt.'}`
     : pl.includes('lời khuyên') || pl.includes('advice')
-      ? `Liên quan đến "${question}": Lời khuyên từ trải bài là ${kw2}. ${dc.isReversed ? 'Tránh cứng nhắc hoặc thiếu kế hoạch — cần điều chỉnh cách tiếp cận.' : 'Tiếp tục theo hướng này với sự tỉnh táo.'}`
+      ? `Liên quan đến "${question}": lời khuyên không phải là làm ngược cảm xúc, mà là điều chỉnh cách phản ứng với ${kw2}. ${dc.isReversed ? 'Nới lỏng mô thức cũ, dừng vòng lặp và chọn một hành động nhỏ có kiểm chứng.' : 'Giữ phẩm chất tốt của lá này nhưng áp dụng bằng hành động thực tế, không chỉ kỳ vọng.'}`
     : pl.includes('xu hướng') || pl.includes('kết quả') || pl.includes('future') || pl.includes('tương lai')
-      ? `Nếu tiếp tục theo hướng hiện tại liên quan đến "${question}": ${kw2} là chiều hướng khả thi. ${dc.isReversed ? 'Kết quả có thể không như mong đợi nếu không thay đổi.' : 'Kết quả tích cực là có thể nếu duy trì nhịp hiện tại.'}`
+      ? `Nếu tiếp tục theo hướng hiện tại liên quan đến "${question}": ${dc.card.nameVi} ${orient} cho thấy xu hướng ${kw2}. ${dc.isReversed ? 'Kết quả dễ bị chậm hoặc lệch nếu không thay đổi cách tiếp cận.' : 'Đây là hướng mở, nhưng vẫn phụ thuộc vào việc xử lý các lá cản trở và lời khuyên trước đó.'}`
     : pl.includes('quá khứ') || pl.includes('past')
       ? `Bối cảnh quá khứ ảnh hưởng đến "${question}": ${kw2} — năng lượng cũ này đang định hình hiện tại của bạn.`
     : pl.includes('bạn') && !pl.includes('người ấy')
@@ -129,7 +130,7 @@ function buildPositionAnalysis(
     cardNameVi: dc.card.nameVi,
     orientation: dc.isReversed ? 'reversed' : 'upright',
     keywords: kw,
-    cardMeaning: dc.isReversed ? dc.card.meaningReversed : dc.card.meaningUpright,
+    cardMeaning: activeMeaning,
     meaningInThisPosition,
     meaningForUserQuestion,
     psychologicalInsight,
@@ -138,20 +139,38 @@ function buildPositionAnalysis(
 }
 
 /* ── combined conclusion ── */
-function buildCombinedConclusion(cards: DrawnCardInput[], spreadId: string, question: string, signal: SignalType): string {
+function buildCombinedConclusion(
+  cards: DrawnCardInput[],
+  spreadId: string,
+  question: string,
+  signal: SignalType,
+  questionType: string
+): string {
   const reversedCount = cards.filter(c => c.isReversed).length;
   const pentacleCards = cards.filter(c => c.card.name.toLowerCase().includes('pentacle') || c.card.name.toLowerCase().includes('coin'));
   const hasPentacles = pentacleCards.length > 0;
+  const cardKw = (card: DrawnCardInput, count = 2) =>
+    (card.isReversed ? card.card.keywordsReversed : card.card.keywordsUpright).slice(0, count).join('/');
 
   if (spreadId === 'five-cards') {
     const [sit, obs, hid, adv, trend] = cards;
     let conclusion = `Tổng hợp 5 lá cho câu hỏi "${question}": `;
-    conclusion += `Tình huống hiện tại (${sit.card.nameVi} ${sit.isReversed?'ngược':'xuôi'}) cho thấy bạn đang ở điểm xuất phát với năng lượng ${sit.card.keywordsUpright.slice(0,2).join('/')}. `;
-    conclusion += `Điều đang cản trở (${obs.card.nameVi} ${obs.isReversed?'ngược':'xuôi'}) cho thấy ${obs.isReversed?'rào cản đang hoạt động mạnh':'một trở ngại cần vượt qua'}. `;
-    conclusion += `Điều bị che khuất (${hid.card.nameVi} ${hid.isReversed?'ngược':'xuôi'}) tiết lộ ${hid.isReversed?'rủi ro chìm cần làm rõ':'tiềm năng chưa được khai thác'}. `;
-    conclusion += `Lời khuyên (${adv.card.nameVi} ${adv.isReversed?'ngược':'xuôi'}) hướng đến ${adv.isReversed?'điều chỉnh cách tiếp cận':'hành động có kế hoạch'}. `;
-    conclusion += `Xu hướng kết quả (${trend.card.nameVi} ${trend.isReversed?'ngược':'xuôi'}): ${trend.isReversed?'kết quả chưa chắc chắn nếu không thay đổi':'chiều hướng tích cực nếu duy trì đúng nhịp'}. `;
-    if (hasPentacles) conclusion += `Sự xuất hiện của các lá Pentacles nhấn mạnh đây là vấn đề liên quan đến tài chính, tài sản và sự ổn định vật chất. `;
+    conclusion += `Tình huống hiện tại (${sit.card.nameVi} ${sit.isReversed?'ngược':'xuôi'}) đặt nền ở ${cardKw(sit)}. `;
+    conclusion += `Điều đang cản trở (${obs.card.nameVi} ${obs.isReversed?'ngược':'xuôi'}) chỉ ra điểm nghẽn là ${cardKw(obs)}; lá này cần được đọc như chỗ mất cân bằng, không phải nhãn tốt/xấu đơn giản. `;
+    conclusion += `Điều bị che khuất (${hid.card.nameVi} ${hid.isReversed?'ngược':'xuôi'}) tiết lộ ${hid.isReversed?'rủi ro chìm hoặc thay đổi bị trì hoãn':'một động lực phía sau bề mặt'}: ${cardKw(hid)}. `;
+    conclusion += `Lời khuyên (${adv.card.nameVi} ${adv.isReversed?'ngược':'xuôi'}) yêu cầu ${cardKw(adv)}. `;
+    conclusion += `Xu hướng kết quả (${trend.card.nameVi} ${trend.isReversed?'ngược':'xuôi'}) mở ra ${cardKw(trend)}; ${trend.isReversed ? 'kết quả còn chậm hoặc lệch nếu không đổi cách tiếp cận' : reversedCount >= 3 ? 'đây là hướng soi rõ vấn đề hơn là tín hiệu thúc ép tiến nhanh' : 'có thể phát triển tốt nếu xử lý điểm nghẽn trước đó'}. `;
+    if (hasPentacles) {
+      const pentaclesContext =
+        questionType === 'love_relationship'
+          ? 'Các lá Pentacles trong câu hỏi tình cảm nhấn mạnh nhu cầu an toàn, sự giữ chặt, niềm tin được chứng minh bằng hành động và cảm giác có được ưu tiên hay không. '
+          : questionType === 'career_work'
+            ? 'Các lá Pentacles trong câu hỏi công việc nhấn mạnh năng lực duy trì, giá trị thực tế, nguồn lực và kết quả đo được. '
+            : questionType === 'money_finance'
+              ? 'Các lá Pentacles nhấn mạnh tài chính, tài sản, dòng tiền và mức ổn định vật chất. '
+              : 'Các lá Pentacles nhấn mạnh yếu tố thực tế: sự an toàn, nguồn lực, giá trị và cam kết có thể kiểm chứng. ';
+      conclusion += pentaclesContext;
+    }
     conclusion += reversedCount >= 3
       ? `Với ${reversedCount}/5 lá ngược, trải bài nghiêng về "${signal}" — cần xem xét kỹ trước khi hành động.`
       : `Với ${reversedCount}/5 lá ngược, tín hiệu là "${signal}" — có thể tiến nếu xử lý được điểm chặn.`;
@@ -205,7 +224,9 @@ function buildKeyAdvice(cards: DrawnCardInput[], spreadId: string, signal: Signa
   if ((spreadId === 'five-cards') && cards[3]) {
     const adv = cards[3];
     const kw = (adv.isReversed ? adv.card.keywordsReversed : adv.card.keywordsUpright).slice(0,2).join(', ');
-    return `${adv.card.nameVi} (${adv.isReversed?'ngược':'xuôi'}) khuyên: ${kw}.`;
+    return adv.isReversed
+      ? `${adv.card.nameVi} (ngược) khuyên: nhận diện mô thức ${kw}, giảm phản ứng tự động và chọn một bước nhỏ có thể kiểm chứng.`
+      : `${adv.card.nameVi} (xuôi) khuyên: dùng phẩm chất ${kw} bằng hành động rõ ràng, không chỉ suy nghĩ hoặc chờ tín hiệu.`;
   }
   const m: Record<SignalType,string> = {
     proceed:'Năng lượng ủng hộ hành động — tiến với sự tỉnh táo.',
@@ -254,7 +275,7 @@ export function synthesizeTarotReading(input: TarotSynthesisInput): TarotSynthes
   const tension   = buildKeyTension(drawnCards);
   const advice    = buildKeyAdvice(drawnCards, spreadId, signal);
   const oneLine   = buildOneLine(spreadId, signal, drawnCards);
-  const combined  = buildCombinedConclusion(drawnCards, spreadId, question, signal);
+  const combined  = buildCombinedConclusion(drawnCards, spreadId, question, signal, ctx.questionType);
 
   const baseOverview =
     spreadId==='daily' ? `Lá bài hôm nay phản ánh năng lượng chủ đạo bạn sẽ gặp. Đây là tín hiệu để điều chỉnh thái độ trong ngày.`

@@ -3,7 +3,7 @@ import { buildTarotContextBundle, buildKinhDichContextBundle } from '../lib/ai/c
 import type { CastingMetadata, ManualHexagramState } from '../types';
 import type { DrawnCard } from '../types/tarot';
 import type { ZodiacLens } from '../lib/astrology/zodiac';
-import { synthesizeTarotReading } from '../lib/readings/synthesis';
+import { synthesizeKinhDichReading, synthesizeTarotReading } from '../lib/readings/synthesis';
 import type { SignalType } from '../lib/readings/synthesis';
 
 // Re-exporting for UI use
@@ -33,12 +33,172 @@ function signalLabel(signal: SignalType): string {
   return labels[signal];
 }
 
+const WEAK_TAROT_PHRASES = [
+  'phản ánh năng lượng tình cảm',
+  'tâm lý hiện tại cần sự cân bằng',
+  'năng lượng tình cảm đang cần sự quan sát',
+  'khuyên bạn nên xem xét kỹ các yếu tố thực tế',
+  'kiểm tra lại các thông tin',
+  'tập trung vào hành động và ý chí',
+  'liên hệ câu hỏi: phản ánh năng lượng',
+];
+
+function normalizeText(value: string | undefined): string {
+  return (value || '').toLowerCase();
+}
+
+export function isWeakTarotAIResponse(
+  response: UnifiedAIReadingResponse,
+  drawnCards: DrawnCard[],
+  question = ''
+): boolean {
+  const text = normalizeText([
+    response.directAnswer,
+    response.quickSummary,
+    response.synthesisSummary,
+    response.reasonedInterpretation,
+    response.contextualInterpretation,
+    response.psychologicalInterpretation,
+    response.finalMessage,
+    ...(response.positionAnalyses || []).flatMap((position) => [
+      position.meaningInThisPosition,
+      position.meaningForUserQuestion,
+      position.psychologicalInsight,
+    ]),
+    ...(response.practicalAdvice || []),
+    ...(response.thingsToAvoid || []),
+    ...(response.riskNotes || []),
+  ].join(' '));
+
+  const genericHits = WEAK_TAROT_PHRASES.filter((phrase) => text.includes(phrase)).length;
+  const hasSynthesisOnlyPhrase = text.includes('dẫn trải bài');
+  const missesMessagingAction = isMessagingQuestion(question) &&
+    !/(nhan|gui|goi|mo loi|chu dong|tin nhan|cho|doi)/i.test(normalizeVietnameseText(response.directAnswer || ''));
+  const positionAnalyses = response.positionAnalyses || [];
+  const hasEnoughPositionWork = positionAnalyses.length >= drawnCards.length;
+  const weakPositions = positionAnalyses.filter((position) => {
+    const positionText = normalizeText([
+      position.meaningInThisPosition,
+      position.meaningForUserQuestion,
+      position.psychologicalInsight,
+    ].join(' '));
+    return (
+      positionText.length < 140 ||
+      WEAK_TAROT_PHRASES.some((phrase) => positionText.includes(phrase)) ||
+      !positionText.includes(normalizeText(position.cardName))
+    );
+  }).length;
+
+  const mentionedCards = drawnCards.filter((drawnCard) => {
+    const vi = normalizeText(drawnCard.card.nameVi);
+    const en = normalizeText(drawnCard.card.name);
+    return (vi && text.includes(vi)) || (en && text.includes(en));
+  }).length;
+
+  return (
+    missesMessagingAction ||
+    hasSynthesisOnlyPhrase ||
+    response.qualitySelfCheck?.isTooGeneric === true ||
+    response.qualitySelfCheck?.isContextual === false ||
+    genericHits >= 2 ||
+    !hasEnoughPositionWork ||
+    weakPositions >= Math.max(1, Math.ceil(drawnCards.length / 2)) ||
+    mentionedCards < Math.min(drawnCards.length, 3) ||
+    normalizeText(response.synthesisSummary).length < 120 ||
+    normalizeText(response.contextualInterpretation).length < 120
+  );
+}
+
+function orientationLabel(isReversed: boolean): string {
+  return isReversed ? 'ngược' : 'xuôi';
+}
+
+function cardKeywords(card: DrawnCard): string {
+  return (card.isReversed ? card.card.keywordsReversed : card.card.keywordsUpright)
+    .slice(0, 3)
+    .join(', ');
+}
+
+function cardMeaning(card: DrawnCard): string {
+  return card.isReversed ? card.card.meaningReversed : card.card.meaningUpright;
+}
+
+function normalizeVietnameseText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
+function isMessagingQuestion(question: string): boolean {
+  const normalized = normalizeVietnameseText(question);
+  return /(nhan tin|goi lai|chu dong|mo loi|reply|inbox|message)/i.test(normalized) ||
+    (/\btin\b/i.test(normalized) && /(nhan|nguoi|ay|lai|nen)/i.test(normalized));
+}
+
+function buildMessagingAdvice(card: DrawnCard, signal: SignalType): string {
+  const cardLabel = `${card.card.nameVi} ${orientationLabel(card.isReversed)}`;
+  const keywords = cardKeywords(card);
+
+  if (card.isReversed) {
+    return `Chưa nên nhắn vội. ${cardLabel} cho thấy điểm nghẽn là ${keywords}, nên nếu bạn nhắn ngay rất dễ mang theo nhu cầu được xác nhận hoặc kỳ vọng người kia phản hồi đúng ý. Hãy chờ đến khi cảm xúc dịu xuống, rồi chỉ nhắn một câu nhẹ, không chất vấn: "Mình nhớ tới bạn nên hỏi thăm một chút, nếu bạn tiện thì nhắn lại sau cũng được." Sau tin đó, đừng nhắn dồn; nếu họ không phản hồi hoặc vẫn lạnh, đó là dữ kiện để lùi lại chứ không phải lý do để ép thêm.`;
+  }
+
+  if (signal === 'proceed' || signal === 'conditional') {
+    return `Có thể nhắn, nhưng nên nhắn nhẹ và có đường lui. ${cardLabel} cho thấy ${keywords}, vì vậy mục tiêu không phải kéo họ vào cuộc nói chuyện ngay mà là mở một cánh cửa rõ ràng, bình tĩnh. Hãy dùng một tin ngắn, thân thiện, không kiểm tra hay trách móc; sau đó quan sát chất lượng phản hồi của họ trước khi bước tiếp.`;
+  }
+
+  return `Nên chậm lại trước khi nhắn. ${cardLabel} cho thấy ${keywords}; câu trả lời tốt nhất lúc này là đợi thêm tín hiệu rõ hơn hoặc chọn một tin nhắn rất ngắn, không đặt áp lực phản hồi.`;
+}
+
+function buildSpecificTarotDirectAnswer(
+  question: string,
+  drawnCards: DrawnCard[],
+  synthesisSignal: SignalType,
+  isLove: boolean,
+  timeline: string
+): string {
+  const [current, obstacle, hidden, advice, trend] = drawnCards;
+  const timelineText = timeline ? `Trong ${timeline}, ` : '';
+
+  if (isLove && isMessagingQuestion(question) && drawnCards.length <= 2 && current) {
+    return buildMessagingAdvice(current, synthesisSignal);
+  }
+
+  if (drawnCards.length === 5 && current && obstacle && hidden && advice && trend) {
+    const domainText = isLove
+      ? 'chuyện tình cảm không đứng yên, nhưng đang cần một lần nói rõ thay vì đoán ý nhau'
+      : 'tình huống có thể tiến triển, nhưng chỉ khi xử lý đúng điểm nghẽn hiện tại';
+
+    return `${signalLabel(synthesisSignal)}. Với câu hỏi "${question}", ${timelineText}${domainText}: ${current.card.nameVi} ${orientationLabel(current.isReversed)} cho thấy nền hiện tại là ${cardKeywords(current)}; ${obstacle.card.nameVi} ở vị trí cản trở chỉ ra nút thắt là ${cardKeywords(obstacle)}; ${hidden.card.nameVi} cho thấy phần chưa được nói ra là ${cardKeywords(hidden)}. Lời khuyên nằm ở ${advice.card.nameVi}: ${cardKeywords(advice)}. Xu hướng ${trend.card.nameVi} ${orientationLabel(trend.isReversed)} mở ra khả năng chuyển pha. Ý nghĩa trọng tâm của lá xu hướng: ${cardMeaning(trend)} Kết quả phụ thuộc vào việc bạn có xử lý được nút cản và phần bị che khuất hay không.`;
+  }
+
+  const first = drawnCards[0];
+  const last = drawnCards[drawnCards.length - 1] || first;
+  if (!first) return `${signalLabel(synthesisSignal)}. Chưa đủ lá bài để đưa ra kết luận đáng tin.`;
+
+  return `${signalLabel(synthesisSignal)}. Với câu hỏi "${question}", ${timelineText}${first.card.nameVi} ${orientationLabel(first.isReversed)} đặt nền bằng ${cardKeywords(first)}; ${last.card.nameVi} ${orientationLabel(last.isReversed)} cho thấy hướng tiếp theo là ${cardKeywords(last)}. Ý nghĩa trọng tâm của lá cuối: ${cardMeaning(last)} Trọng tâm là đọc các dấu hiệu thực tế thay vì kết luận một chiều.`;
+}
+
 export async function mockAIHexagramReading(
   metadata: CastingMetadata,
   hexagramState: ManualHexagramState,
   tone?: string
 ): Promise<UnifiedAIReadingResponse> {
   void tone;
+  const movingLinesText = hexagramState.movingLines.length > 0
+    ? hexagramState.movingLines.join(', ')
+    : 'Không có';
+  const synthesis = synthesizeKinhDichReading({
+    question: metadata.question,
+    topic: metadata.topic,
+    primaryHexagram: hexagramState.primaryInfo.name,
+    changedHexagram: hexagramState.changedInfo.name,
+    movingLines: movingLinesText,
+    sixLines: hexagramState.primaryLines.join(', '),
+  });
   const input = {
     question: metadata.question,
     topic: metadata.topic,
@@ -50,42 +210,68 @@ export async function mockAIHexagramReading(
   };
   
   const ctx = buildKinhDichContextBundle(input);
+  const movingLineSentence = movingLinesText === 'Không có'
+    ? 'không có hào động nên trọng tâm là giữ nhịp hiện tại và đọc kỹ bản chất quẻ chính'
+    : `hào động ${movingLinesText} là điểm cần xử lý trước khi kỳ vọng tình huống đổi hướng`;
+  const domainAdvice = ctx.questionContext.questionType === 'love_relationship'
+    ? 'Trong tình cảm, hãy đo bằng chất lượng giao tiếp, mức chủ động lặp lại và ranh giới rõ ràng; tránh tự diễn giải im lặng thành câu trả lời chắc chắn.'
+    : ctx.questionContext.questionType === 'career_work'
+      ? 'Với công việc/kinh doanh, hãy kiểm tra dòng tiền, nguồn lực, người chịu trách nhiệm và mốc đánh giá trước khi mở rộng.'
+      : ctx.questionContext.questionType === 'money_finance'
+        ? 'Với tài chính, ưu tiên bảo toàn vốn, kịch bản xấu nhất và khả năng thoát vị thế trước khi quyết định.'
+        : 'Hãy chuyển tín hiệu của quẻ thành một bước thử nhỏ, có thời hạn và có tiêu chí kiểm chứng.';
 
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve({
-        directAnswer: `Dựa trên quẻ ${ctx.readingData.hexagram?.primary} và câu hỏi của bạn, hãy tiếp cận vấn đề một cách cẩn trọng và quan sát thêm trước khi ra quyết định.`,
-        decisionSignal: 'conditional',
+        directAnswer: `${signalLabel(synthesis.mainSignal)}. Với câu hỏi "${metadata.question}", ${hexagramState.primaryInfo.name} chuyển sang ${hexagramState.changedInfo.name}; ${movingLineSentence}. ${domainAdvice}`,
+        decisionSignal: synthesis.mainSignal,
         confidenceLevel: 'medium',
         questionContext: ctx.questionContext as UnifiedAIReadingResponse['questionContext'],
         personalizationUsed: {
           memoryUsed: false,
           zodiacUsed: false,
           referenceUsed: false,
-          synthesisUsed: false
+          synthesisUsed: true
         },
-        quickSummary: `Hãy kiên nhẫn và quan sát kỹ trước khi hành động.`,
-        synthesisSummary: "Sự kết hợp này cho thấy cần thêm thời gian để rõ ràng.",
+        quickSummary: synthesis.oneLineSummary,
+        synthesisSummary: synthesis.patternSummary,
         positionAnalyses: [],
-        psychologicalInterpretation: "Tâm lý hiện tại cần sự tĩnh lặng để đưa ra quyết định đúng đắn.",
+        reasonedInterpretation: `${synthesis.keyTension} Vì vậy tín hiệu chính là "${synthesis.mainSignal}", không phải một kết luận tuyệt đối.`,
+        psychologicalInterpretation: ctx.questionContext.questionType === 'love_relationship'
+          ? 'Tâm lý trọng tâm là phân biệt cảm xúc thật với nhu cầu được trấn an ngay lập tức. Quẻ khuyên quan sát hành động lặp lại hơn là phản ứng nhất thời.'
+          : 'Tâm lý trọng tâm là tách mong muốn nhanh có kết quả khỏi dữ kiện thực tế. Quyết định nên đi qua một bước kiểm chứng nhỏ trước.',
         symbolicReading: {
-          mainPattern: `Quẻ chính ${ctx.readingData.hexagram?.primary} cho thấy tình huống đang trong giai đoạn hình thành.`,
-          changingFactor: 'Hào động cho thấy điểm cần chú ý.',
-          futureTrend: `Xu hướng sẽ dẫn tới quẻ ${ctx.readingData.hexagram?.changed}.`,
+          mainPattern: synthesis.primaryHexagramSummary,
+          changingFactor: synthesis.movingLinesSummary,
+          futureTrend: synthesis.changedHexagramSummary,
+          transformationSummary: synthesis.patternSummary,
         },
-        contextualInterpretation: `Với câu hỏi về ${ctx.questionContext.mainObject}, mọi thứ đang trong giai đoạn chuẩn bị.`,
+        contextualInterpretation: synthesis.changedHexagramSummary,
         decisionChecklist: ctx.questionContext.requiredLens.length > 0
           ? ctx.questionContext.requiredLens.map((l: string) => `Xem xét: ${l}`)
-          : ['Quan sát tình huống thêm 3-5 ngày.', 'Tham khảo ý kiến từ người tin tưởng.'],
+          : ['Xác định dữ kiện đã chắc chắn.', 'Chọn một hành động thử nhỏ.', 'Đặt mốc xem lại kết quả.'],
         practicalAdvice: [
-          'Quan sát thêm trước khi hành động.',
-          'Ghi lại các dấu hiệu và tín hiệu xung quanh.',
+          synthesis.keyAdvice,
+          domainAdvice,
+          movingLinesText === 'Không có'
+            ? 'Không nên đổi chiến lược chỉ vì nóng ruột; hãy nhìn lại nền hiện tại.'
+            : `Ưu tiên xử lý điểm biến chuyển ở hào ${movingLinesText} trước khi quyết định bước lớn.`,
         ],
         thingsToAvoid: [
-          'Tránh ra quyết định khi đang cảm xúc không ổn định.',
+          'Tránh coi quẻ như mệnh lệnh tuyệt đối.',
+          'Tránh bỏ qua dữ kiện trái chiều chỉ vì câu trả lời nghe thuận tai.',
         ],
-        riskNotes: ['Rủi ro từ việc hành động thiếu thông tin đầy đủ.'],
-        finalMessage: 'Hãy tin vào quá trình và kiên nhẫn với nhịp độ tự nhiên của mọi việc.',
+        riskNotes: [synthesis.keyTension],
+        finalMessage: 'Quẻ chỉ ra điểm cần nhìn thẳng; phần còn lại phụ thuộc vào cách bạn kiểm chứng và hành động.',
+        qualitySelfCheck: {
+          isContextual: true,
+          isTooGeneric: false,
+          isTooLong: false,
+          missingImportantInfo: [],
+          offTopicWarnings: [],
+          needsSecondPass: false,
+        },
       });
     }, 2500);
   });
@@ -125,15 +311,19 @@ export async function mockAITarotReading(
     positionFunction: pa.positionFunction,
     cardName: pa.cardNameVi,
     orientation: pa.orientation,
-    meaningInThisPosition: pa.meaningInThisPosition,
-    meaningForUserQuestion: pa.meaningForUserQuestion,
-    psychologicalInsight: pa.psychologicalInsight,
+    meaningInThisPosition: `${pa.cardMeaning} ${pa.meaningInThisPosition}`,
+    meaningForUserQuestion: `${pa.meaningForUserQuestion} Tín hiệu thực tế: ${pa.practicalSignal}`,
+    psychologicalInsight: `${pa.psychologicalInsight} Điểm cần tự hỏi: phản ứng hiện tại của bạn đang đến từ dữ kiện, nỗi sợ, hay mong muốn được xác nhận?`,
     practicalSignal: pa.orientation === 'reversed' ? 'wait' : 'proceed',
   }));
 
-  const directAnswer = isLove
-    ? `${signalLabel(synthesis.mainSignal)}. ${timeline ? `Trong ${timeline}, ` : ''}${finalCard ? `${finalCard.card.nameVi} ở vị trí "${finalCard.positionName}" cho thấy cửa phát triển vẫn có, nhưng ` : ''}${reversedCount > 0 ? `${reversedCount} lá ngược yêu cầu làm rõ cảm xúc, ranh giới và nhịp giao tiếp trước khi kỳ vọng tiến xa.` : 'năng lượng đang khá thuận nếu hai bên chủ động rõ ràng.'}`
-    : `${signalLabel(synthesis.mainSignal)}. ${synthesis.oneLineSummary}`;
+  const directAnswer = buildSpecificTarotDirectAnswer(
+    question,
+    drawnCards,
+    synthesis.mainSignal,
+    isLove,
+    timeline
+  );
 
   return new Promise((resolve) => {
     setTimeout(() => {

@@ -3,6 +3,13 @@ import { buildKinhDichContextBundle, validateContextBundle, generateDeterministi
 import type { UnifiedAIReadingResponse } from '../src/types/ai';
 
 const ENABLE_AI_SECOND_PASS = true;
+const KINH_DICH_SYSTEM_INSTRUCTION = [
+  'Bạn là chuyên gia Kinh Dịch tiếng Việt theo hướng ứng dụng thực tế.',
+  'Luôn trả lời trực tiếp câu hỏi gốc trước, rồi mới giải thích quẻ chủ, hào động và quẻ biến.',
+  'Không viết chung chung hoặc diễn nghĩa quẻ kiểu giáo khoa.',
+  'Khi câu hỏi là quyết định/hành động, bắt buộc nêu nên/chưa nên/không nên/chỉ nên nếu điều kiện nào đúng.',
+  'Trả về JSON hợp lệ theo schema được yêu cầu, không markdown.'
+].join(' ');
 
 interface ApiResponse {
   status(code: number): {
@@ -24,6 +31,16 @@ interface HexagramApiRequest {
   };
 }
 
+interface GeminiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+}
+
 // Global memory cache for AI responses
 const aiCache = new Map<string, UnifiedAIReadingResponse>();
 
@@ -38,6 +55,51 @@ function generateCacheKey(bundle: ReturnType<typeof buildKinhDichContextBundle>)
   });
 }
 
+function normalizeVietnameseText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
+function isWeakKinhDichReading(result: UnifiedAIReadingResponse): boolean {
+  const text = normalizeVietnameseText([
+    result.questionEcho,
+    result.directAnswer,
+    result.quickSummary,
+    result.synthesis,
+    result.synthesisSummary,
+    result.reasonedInterpretation,
+    result.contextualInterpretation,
+    result.psychologicalInterpretation,
+    ...(result.actionableAdvice || []),
+    ...(result.practicalAdvice || []),
+    ...(result.decisionChecklist || []),
+  ].join(' '));
+  const genericPhrases = [
+    'can quan sat them',
+    'co tiem nang',
+    'can can bang',
+    'xem xet ky cac yeu to thuc te',
+    'kiem tra lai cac thong tin',
+    'phan anh boi canh chung',
+    'nang luong hien tai',
+  ];
+  const genericHits = genericPhrases.filter((phrase) => text.includes(phrase)).length;
+
+  return (
+    result.qualitySelfCheck?.directlyAnswersQuestion === false ||
+    !result.directAnswer ||
+    !result.contextualInterpretation ||
+    (result.directAnswer || '').length < 80 ||
+    (result.contextualInterpretation || '').length < 90 ||
+    (result.synthesisSummary || result.synthesis || '').length < 90 ||
+    genericHits >= 2
+  );
+}
+
 export default async function handler(req: HexagramApiRequest, res: ApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -49,6 +111,12 @@ export default async function handler(req: HexagramApiRequest, res: ApiResponse)
     if (!data || !data.question || !data.topic || !data.primaryHexagram) {
       return res.status(400).json({ error: 'Thiếu thông tin bắt buộc (question, topic, primaryHexagram).' });
     }
+    const contextInput = {
+      ...data,
+      question: data.question,
+      topic: data.topic,
+      primaryHexagram: data.primaryHexagram,
+    };
 
     const apiKey = process.env.AI_API_KEY;
     if (!apiKey) {
@@ -56,7 +124,7 @@ export default async function handler(req: HexagramApiRequest, res: ApiResponse)
     }
 
     // Build Context Bundle
-    const contextBundle = buildKinhDichContextBundle(data);
+    const contextBundle = buildKinhDichContextBundle(contextInput);
 
     // Cache Check
     const cacheKey = generateCacheKey(contextBundle);
@@ -72,12 +140,14 @@ export default async function handler(req: HexagramApiRequest, res: ApiResponse)
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          systemInstruction: { parts: [{ text: KINH_DICH_SYSTEM_INSTRUCTION }] },
           contents: [{ parts: [{ text: textPrompt }] }],
           generationConfig: {
             response_mime_type: "application/json",
-            temperature: 0.7,
-            topP: 0.8,
-            topK: 40
+            temperature: 0.85,
+            topP: 0.92,
+            topK: 50,
+            maxOutputTokens: 2048
           }
         })
       });
@@ -85,11 +155,12 @@ export default async function handler(req: HexagramApiRequest, res: ApiResponse)
         const errorText = await resp.text();
         throw new Error(`AI API error: ${resp.statusText} - ${errorText}`);
       }
-      const aiData = await resp.json();
-      if (!aiData.candidates?.[0]?.content?.parts?.[0]?.text) {
+      const aiData = await resp.json() as GeminiResponse;
+      const responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!responseText) {
         throw new Error('AI response is empty or malformed');
       }
-      return JSON.parse(aiData.candidates[0].content.parts[0].text);
+      return JSON.parse(responseText);
     }
 
     const validation = validateContextBundle(contextBundle);
@@ -104,11 +175,12 @@ export default async function handler(req: HexagramApiRequest, res: ApiResponse)
       const needsSecondPass = qc && (
         qc.isTooGeneric === true ||
         qc.isContextual === false ||
+        qc.directlyAnswersQuestion === false ||
         (qc.offTopicWarnings && qc.offTopicWarnings.length > 0) ||
         qc.needsSecondPass === true ||
         !structuredResult.directAnswer ||
         !structuredResult.contextualInterpretation
-      );
+      ) || isWeakKinhDichReading(structuredResult);
 
       if (ENABLE_AI_SECOND_PASS && needsSecondPass) {
         secondPassUsed = true;
@@ -118,6 +190,11 @@ export default async function handler(req: HexagramApiRequest, res: ApiResponse)
       }
     } catch (apiError) {
       console.error('AI Call failed, using fallback:', apiError);
+      structuredResult = generateDeterministicFallback(contextBundle);
+    }
+
+    if (isWeakKinhDichReading(structuredResult)) {
+      qualityFailedReason = `${qualityFailedReason}; final guard fallback`;
       structuredResult = generateDeterministicFallback(contextBundle);
     }
 

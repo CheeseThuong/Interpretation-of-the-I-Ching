@@ -4,8 +4,16 @@ import { prepareZodiacReferenceContext } from '../src/lib/astrology/zodiacRefere
 import { buildTarotContextBundle, validateContextBundle, generateDeterministicFallback } from '../src/lib/ai/contextBundle';
 import type { ContextTarotCard } from '../src/lib/ai/contextBundle';
 import type { UnifiedAIReadingResponse } from '../src/types/ai';
+import { synthesizeTarotReading } from '../src/lib/readings/synthesis';
 
 const ENABLE_AI_SECOND_PASS = true;
+const TAROT_SYSTEM_INSTRUCTION = [
+  'Bạn là Tarot reader tiếng Việt chuyên phân tích quyết định và quan hệ.',
+  'Luôn trả lời trực tiếp câu hỏi gốc trước, sau đó mới giải thích bằng lá bài.',
+  'Không viết chung chung hoặc dùng mẫu "cần quan sát thêm" nếu không có hành động cụ thể.',
+  'Khi câu hỏi là nhắn tin/liên lạc/chủ động, bắt buộc nêu nên hay chưa nên, vì sao, nhắn thế nào và dấu hiệu để dừng.',
+  'Trả về JSON hợp lệ theo schema được yêu cầu, không markdown.'
+].join(' ');
 
 interface ApiResponse {
   status(code: number): {
@@ -38,8 +46,20 @@ interface TarotApiRequest {
   };
 }
 
+interface GeminiResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+}
+
 // Global memory cache for AI responses
 const aiCache = new Map<string, UnifiedAIReadingResponse>();
+
+type TarotContextBundle = ReturnType<typeof buildTarotContextBundle>;
 
 function generateCacheKey(bundle: ReturnType<typeof buildTarotContextBundle>): string {
   return JSON.stringify({
@@ -54,19 +74,25 @@ function generateCacheKey(bundle: ReturnType<typeof buildTarotContextBundle>): s
 
 function isWeakTarotReading(
   result: UnifiedAIReadingResponse,
-  bundle: ReturnType<typeof buildTarotContextBundle>
+  bundle: TarotContextBundle
 ): boolean {
-  const text = [
+  const rawText = [
+    result.questionEcho,
     result.directAnswer,
     result.quickSummary,
+    result.synthesis,
     result.synthesisSummary,
     result.contextualInterpretation,
+    result.reasonedInterpretation,
+    ...(result.actionableAdvice || []),
+    ...(result.practicalAdvice || []),
     ...(result.positionAnalyses || []).map((position) => position.meaningForUserQuestion),
-  ].join(' ').toLowerCase();
+  ].join(' ');
+  const text = normalizeVietnameseText(rawText);
   const cards = bundle.readingData.cards || [];
   const cardNamesMentioned = cards.filter((card) => {
-    const nameVi = (card.nameVi || card.card?.nameVi || '').toLowerCase();
-    const name = (card.name || card.card?.name || '').toLowerCase();
+    const nameVi = normalizeVietnameseText(card.nameVi || card.card?.nameVi || '');
+    const name = normalizeVietnameseText(card.name || card.card?.name || '');
     return (nameVi && text.includes(nameVi)) || (name && text.includes(name));
   }).length;
   const genericPhrases = [
@@ -74,17 +100,172 @@ function isWeakTarotReading(
     'cần cân nhắc kỹ lưỡng',
     'kiểm tra lại các thông tin',
     'tâm lý hiện tại cần sự cân bằng',
+    'năng lượng tình cảm đang cần sự quan sát',
+    'khuyên bạn nên xem xét kỹ các yếu tố thực tế',
+    'tập trung vào hành động và ý chí',
+    'dẫn trải bài',
   ];
-  const genericHits = genericPhrases.filter((phrase) => text.includes(phrase)).length;
+  const normalizedGenericPhrases = [
+    ...genericPhrases.map(normalizeVietnameseText),
+    'phan anh nang luong tinh cam',
+    'can can nhac ky luong',
+    'kiem tra lai cac thong tin',
+    'tam ly hien tai can su can bang',
+    'nang luong tinh cam dang can su quan sat',
+    'khuyen ban nen xem xet ky cac yeu to thuc te',
+    'tap trung vao hanh dong va y chi',
+    'dan trai bai',
+    'co tiem nang phat trien tich cuc',
+    'can quan sat them',
+  ];
+  const genericHits = normalizedGenericPhrases.filter((phrase) => text.includes(phrase)).length;
+  const hasSynthesisOnlyPhrase = text.includes('dan trai bai');
   const hasEnoughPositionWork = (result.positionAnalyses?.length || 0) >= cards.length;
+  const directAnswer = normalizeVietnameseText(result.directAnswer || '');
+  const missesMessagingAction = isMessagingQuestion(bundle.currentQuestion) &&
+    !/(nhan|gui|goi|mo loi|chu dong|tin nhan|cho|doi)/i.test(directAnswer);
+  const missingConcreteMessagingAdvice = isMessagingQuestion(bundle.currentQuestion) &&
+    (result.actionableAdvice || result.practicalAdvice || []).length < 2;
+  const explicitlyFailedSelfCheck = result.qualitySelfCheck?.directlyAnswersQuestion === false;
 
   return (
+    explicitlyFailedSelfCheck ||
+    missesMessagingAction ||
+    missingConcreteMessagingAdvice ||
+    hasSynthesisOnlyPhrase ||
     !hasEnoughPositionWork ||
     cardNamesMentioned < Math.min(cards.length, 2) ||
     genericHits >= 2 ||
+    (result.directAnswer || '').length < 80 ||
     (result.contextualInterpretation || '').length < 80 ||
     (result.synthesisSummary || '').length < 80
   );
+}
+
+function inferSpreadId(bundle: TarotContextBundle): 'one-card' | 'three-cards' | 'love' | 'yes-no' | 'daily' | 'five-cards' {
+  const cards = bundle.readingData.cards || [];
+  const spreadType = (bundle.readingData.spreadType || '').toLowerCase();
+  if (spreadType.includes('love') || spreadType.includes('tình yêu')) return 'love';
+  if (cards.length === 5) return 'five-cards';
+  if (cards.length === 3) return 'three-cards';
+  return 'one-card';
+}
+
+function normalizeVietnameseText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
+function isMessagingQuestion(question: string): boolean {
+  const normalized = normalizeVietnameseText(question);
+  return /(nhan tin|goi lai|chu dong|mo loi|reply|inbox|message)/i.test(normalized) ||
+    (/\btin\b/i.test(normalized) && /(nhan|nguoi|ay|lai|nen)/i.test(normalized));
+}
+
+function buildApiMessagingFallback(bundle: TarotContextBundle): string | null {
+  const cards = bundle.readingData.cards || [];
+  const first = cards[0];
+  if (!first || !isMessagingQuestion(bundle.currentQuestion)) return null;
+
+  const isReversed = !!first.isReversed;
+  const name = first.nameVi || first.card?.nameVi || first.name || first.card?.name || 'lá bài';
+  const keywords = (isReversed
+    ? (first.keywordsReversed || first.card?.keywordsReversed || [])
+    : (first.keywordsUpright || first.card?.keywordsUpright || [])
+  ).slice(0, 3).join(', ');
+  const meaning = isReversed
+    ? (first.meaningReversed || first.card?.meaningReversed || '')
+    : (first.meaningUpright || first.card?.meaningUpright || '');
+
+  if (isReversed) {
+    return `Chưa nên nhắn vội. ${name} ngược cho thấy điểm nghẽn là ${keywords || 'cảm xúc chưa ổn định'}, nên tin nhắn lúc này dễ xuất phát từ nhu cầu được xác nhận hơn là sự rõ ràng. ${meaning} Nếu vẫn muốn mở lời, hãy chờ cảm xúc dịu xuống rồi gửi một câu ngắn, không chất vấn, không đòi phản hồi; sau đó dừng lại để xem họ có chủ động nối tiếp hay không.`;
+  }
+
+  return `Có thể nhắn, nhưng nên nhắn nhẹ và có đường lui. ${name} xuôi cho thấy ${keywords || 'có tín hiệu mở'}, vì vậy mục tiêu là mở kết nối chứ không ép câu trả lời. ${meaning} Hãy gửi một tin ngắn, thân thiện, rồi dùng chất lượng phản hồi của họ làm dữ kiện cho bước tiếp theo.`;
+}
+
+function generateTarotFallbackFromBundle(bundle: TarotContextBundle): UnifiedAIReadingResponse {
+  const cards = bundle.readingData.cards || [];
+  if (!cards.length) return generateDeterministicFallback(bundle);
+
+  const synthesis = synthesizeTarotReading({
+    question: bundle.currentQuestion,
+    spreadId: inferSpreadId(bundle),
+    spreadName: bundle.readingData.spreadType || 'Tarot',
+    drawnCards: cards.map((card) => ({
+      positionName: card.position || card.positionName || 'Vị trí',
+      isReversed: !!card.isReversed,
+      card: {
+        name: card.name || card.card?.name || 'Unknown',
+        nameVi: card.nameVi || card.card?.nameVi || card.name || card.card?.name || 'Lá bài',
+        keywordsUpright: card.keywordsUpright || card.card?.keywordsUpright || [],
+        keywordsReversed: card.keywordsReversed || card.card?.keywordsReversed || [],
+        meaningUpright: card.meaningUpright || card.card?.meaningUpright || '',
+        meaningReversed: card.meaningReversed || card.card?.meaningReversed || '',
+      },
+    })),
+  });
+
+  const first = cards[0];
+  const last = cards[cards.length - 1] || first;
+  const lastName = last.nameVi || last.card?.nameVi || last.name || last.card?.name || 'lá cuối';
+  const directAnswer = buildApiMessagingFallback(bundle) || `${synthesis.keyAdvice} ${synthesis.oneLineSummary}`;
+
+  return {
+    questionEcho: bundle.currentQuestion,
+    directAnswer,
+    decisionSignal: synthesis.mainSignal,
+    confidenceLevel: 'medium',
+    questionContext: bundle.questionContext as UnifiedAIReadingResponse['questionContext'],
+    personalizationUsed: {
+      memoryUsed: !!bundle.userMemorySummary,
+      zodiacUsed: !!bundle.zodiacContext,
+      referenceUsed: !!bundle.tarotReferenceContext || !!bundle.zodiacReferenceContext,
+      synthesisUsed: true,
+    },
+    quickSummary: synthesis.oneLineSummary,
+    synthesis: synthesis.combinedConclusion,
+    synthesisSummary: synthesis.combinedConclusion,
+    reasonedInterpretation: `${synthesis.keyTension} Quyết định "${synthesis.mainSignal}" đến từ tương quan giữa số lá ngược, chức năng từng vị trí và xu hướng ở ${lastName}.`,
+    positionAnalyses: synthesis.positionAnalyses.map((position) => ({
+      positionLabel: position.positionLabel,
+      positionFunction: position.positionFunction,
+      cardName: position.cardNameVi,
+      orientation: position.orientation,
+      meaningInThisPosition: `${position.cardMeaning} ${position.meaningInThisPosition}`,
+      meaningForUserQuestion: `${position.meaningForUserQuestion} Tín hiệu thực tế: ${position.practicalSignal}`,
+      psychologicalInsight: position.psychologicalInsight,
+      practicalSignal: position.orientation === 'reversed' ? 'wait' : 'conditional',
+    })),
+    symbolicReading: {
+      mainPattern: synthesis.patternSummary,
+      changingFactor: synthesis.keyTension,
+      futureTrend: `${lastName}: ${synthesis.positionAnalyses[synthesis.positionAnalyses.length - 1]?.cardMeaning || synthesis.oneLineSummary}`,
+    },
+    psychologicalInterpretation: `Trọng tâm tâm lý nằm ở cách bạn phản ứng với ${first.nameVi || first.card?.nameVi || first.name || 'lá đầu'} và cách xu hướng cuối mở ra qua ${lastName}. Không nên đọc từng lá rời rạc; cần xem lá cản trở và lá lời khuyên như điều kiện chuyển hướng kết quả.`,
+    contextualInterpretation: synthesis.combinedConclusion,
+    actionableAdvice: [synthesis.keyAdvice],
+    decisionChecklist: bundle.questionContext.requiredLens.length
+      ? bundle.questionContext.requiredLens.map((lens) => `Kiểm tra: ${lens}`)
+      : ['Đối chiếu ý nghĩa lá bài với hành động thực tế.', 'Xác định điểm cản trở trước khi ra quyết định.', 'Theo dõi tín hiệu lặp lại thay vì một biểu hiện đơn lẻ.'],
+    practicalAdvice: [synthesis.keyAdvice],
+    thingsToAvoid: ['Tránh rút kết luận chỉ từ một lá bài.', 'Tránh bỏ qua vị trí cản trở hoặc điều bị che khuất.'],
+    riskNotes: [synthesis.keyTension],
+    finalMessage: 'Luận giải này ưu tiên dữ liệu trải bài, vị trí và câu hỏi cụ thể; nếu hành động thực tế đổi, xu hướng cũng có thể đổi.',
+    qualitySelfCheck: {
+      directlyAnswersQuestion: true,
+      isContextual: true,
+      isTooGeneric: false,
+      isTooLong: false,
+      missingImportantInfo: [],
+      offTopicWarnings: [],
+      needsSecondPass: false,
+    },
+  };
 }
 
 export default async function handler(req: TarotApiRequest, res: ApiResponse) {
@@ -98,6 +279,29 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
     if (!data || !data.question || !data.drawnCards) {
       return res.status(400).json({ error: 'Thiếu thông tin bắt buộc (question, drawnCards).' });
     }
+    const contextInput = {
+      ...data,
+      question: data.question,
+      drawnCards: data.drawnCards,
+      zodiacLens: data.zodiacLens?.sign &&
+        data.zodiacLens.viName &&
+        data.zodiacLens.element &&
+        data.zodiacLens.modality &&
+        data.zodiacLens.personalizationSummary &&
+        data.zodiacLens.decisionStyle &&
+        data.zodiacLens.adviceStyle
+        ? {
+            sign: data.zodiacLens.sign,
+            viName: data.zodiacLens.viName,
+            element: data.zodiacLens.element,
+            modality: data.zodiacLens.modality,
+            personalizationSummary: data.zodiacLens.personalizationSummary,
+            decisionStyle: data.zodiacLens.decisionStyle,
+            adviceStyle: data.zodiacLens.adviceStyle,
+            psychologicalTendency: data.zodiacLens.psychologicalTendency,
+          }
+        : undefined,
+    };
 
     const apiKey = process.env.AI_API_KEY;
     if (!apiKey) {
@@ -113,9 +317,9 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
     }
 
     // Build Context Bundle
-    data.tarotReferenceContext = referenceContext;
-    data.zodiacReferenceContext = zodiacReferenceContext;
-    const contextBundle = buildTarotContextBundle(data);
+    contextInput.tarotReferenceContext = referenceContext;
+    contextInput.zodiacReferenceContext = zodiacReferenceContext;
+    const contextBundle = buildTarotContextBundle(contextInput);
 
     // Cache Check
     const cacheKey = generateCacheKey(contextBundle);
@@ -143,12 +347,14 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            systemInstruction: { parts: [{ text: TAROT_SYSTEM_INSTRUCTION }] },
             contents: [{ parts: [{ text: textPrompt }] }],
             generationConfig: {
               response_mime_type: 'application/json',
-              temperature: 0.7,
-              topP: 0.8,
-              topK: 40,
+              temperature: 0.85,
+              topP: 0.92,
+              topK: 50,
+              maxOutputTokens: 2048,
             },
           }),
         }
@@ -157,11 +363,12 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
         const errorText = await resp.text();
         throw new Error(`AI API error: ${resp.statusText} - ${errorText}`);
       }
-      const aiData = await resp.json();
-      if (!aiData.candidates?.[0]?.content?.parts?.[0]?.text) {
+      const aiData = await resp.json() as GeminiResponse;
+      const responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!responseText) {
         throw new Error('AI response is empty or malformed');
       }
-      return JSON.parse(aiData.candidates[0].content.parts[0].text);
+      return JSON.parse(responseText);
     }
 
     const validation = validateContextBundle(contextBundle);
@@ -176,6 +383,7 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
       const needsSecondPass = qc && (
         qc.isTooGeneric === true ||
         qc.isContextual === false ||
+        qc.directlyAnswersQuestion === false ||
         (qc.offTopicWarnings && qc.offTopicWarnings.length > 0) ||
         qc.needsSecondPass === true ||
         !structuredResult.directAnswer ||
@@ -190,7 +398,12 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
       }
     } catch (apiError) {
       console.error('AI Call failed, using fallback:', apiError);
-      structuredResult = generateDeterministicFallback(contextBundle);
+      structuredResult = generateTarotFallbackFromBundle(contextBundle);
+    }
+
+    if (isWeakTarotReading(structuredResult, contextBundle)) {
+      qualityFailedReason = `${qualityFailedReason}; final guard fallback`;
+      structuredResult = generateTarotFallbackFromBundle(contextBundle);
     }
 
     console.log('DEV ONLY - AI Pipeline Log:', {

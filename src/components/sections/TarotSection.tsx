@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import '../../styles/tarot.css';
 import { SPREADS } from '../../data/tarot';
 import type { TarotSpread, TarotCard, DrawnCard } from '../../types/tarot';
-import { mockAITarotReading } from '../../utils/mockAI';
+import { isWeakTarotAIResponse, mockAITarotReading } from '../../utils/mockAI';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
 import { createFreshTarotDeck, shuffleTarotDeck, drawTarotCards } from '../../utils/tarotDeck';
 import { synthesizeTarotReading } from '../../lib/readings/synthesis';
@@ -163,7 +163,24 @@ const TarotSection: React.FC = () => {
         finalRes = await response.json();
       } catch {
         console.warn('Fallback to mock Tarot AI');
-        finalRes = await mockAITarotReading(question, drawnCards, 'kinhdichai_signature');
+        finalRes = await mockAITarotReading(
+          question,
+          drawnCards,
+          'kinhdichai_signature',
+          selectedSpread.name,
+          zodiacLens ?? undefined
+        );
+      }
+
+      if (isWeakTarotAIResponse(finalRes, drawnCards, question)) {
+        console.warn('AI Tarot response was too generic; replacing with local synthesis');
+        finalRes = await mockAITarotReading(
+          question,
+          drawnCards,
+          'kinhdichai_signature',
+          selectedSpread.name,
+          zodiacLens ?? undefined
+        );
       }
 
       setAiResponse(finalRes);

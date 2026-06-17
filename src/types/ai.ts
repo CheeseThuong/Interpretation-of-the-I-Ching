@@ -64,6 +64,7 @@ export interface TarotCardReading {
 }
 
 export interface UnifiedAIReadingResponse {
+  questionEcho?: string;
   directAnswer: string;
   decisionSignal: DecisionSignal;
   confidenceLevel: ConfidenceLevel;
@@ -75,6 +76,7 @@ export interface UnifiedAIReadingResponse {
     synthesisUsed: boolean;
   };
   quickSummary: string;
+  synthesis?: string;
   synthesisSummary: string;
   reasonedInterpretation?: string;
   positionAnalyses: TarotCardReading[];
@@ -91,6 +93,7 @@ export interface UnifiedAIReadingResponse {
   };
   psychologicalInterpretation: string;
   contextualInterpretation: string;
+  actionableAdvice?: string[];
   decisionChecklist: string[];
   practicalAdvice: string[];
   thingsToAvoid: string[];
@@ -99,6 +102,7 @@ export interface UnifiedAIReadingResponse {
   zodiacContext?: ZodiacContext; // added back by API route if birthDate provided
   finalMessage: string;
   qualitySelfCheck?: {
+    directlyAnswersQuestion?: boolean;
     isContextual: boolean;
     isTooGeneric: boolean;
     isTooLong: boolean;
