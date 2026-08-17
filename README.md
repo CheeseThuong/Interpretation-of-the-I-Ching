@@ -168,7 +168,7 @@ npm run coverage
 - Tương đương 384 entries → nên lưu từng file JSON hoặc database
 
 ### AI luận giải
-- Cần kết nối LLM API (OpenAI / Gemini / Anthropic)
+- Đã kết nối LLM API qua Groq (`llama-3.3-70b-versatile`, xem `api/read-hexagram.ts` / `api/read-tarot.ts`)
 - Cần RAG trên corpus 64 quẻ + 384 hào
 - Cần prompt engineering cho luận quẻ theo ngữ cảnh
 

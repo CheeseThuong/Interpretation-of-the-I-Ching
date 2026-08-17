@@ -68,7 +68,7 @@ function createDevApiMiddleware(handler: DevApiHandler) {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  process.env.AI_API_KEY ||= env.AI_API_KEY
+  process.env.GROQ_API_KEY ||= env.GROQ_API_KEY
 
   return {
     plugins: [

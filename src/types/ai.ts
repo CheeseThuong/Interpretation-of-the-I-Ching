@@ -63,8 +63,15 @@ export interface TarotCardReading {
   practicalSignal: string;
 }
 
+export interface SubQuestionAnswer {
+  question: string;
+  answer: string;
+  supportingCards: string[];
+}
+
 export interface UnifiedAIReadingResponse {
   questionEcho?: string;
+  subQuestionAnswers?: SubQuestionAnswer[];
   directAnswer: string;
   decisionSignal: DecisionSignal;
   confidenceLevel: ConfidenceLevel;
@@ -103,6 +110,7 @@ export interface UnifiedAIReadingResponse {
   finalMessage: string;
   qualitySelfCheck?: {
     directlyAnswersQuestion?: boolean;
+    allSubQuestionsAnswered?: boolean;
     isContextual: boolean;
     isTooGeneric: boolean;
     isTooLong: boolean;

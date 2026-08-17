@@ -57,6 +57,9 @@ interface KinhDichContextInput {
 
 export interface ContextBundle {
   currentQuestion: string;
+  subQuestions: string[];
+  hasMultipleQuestions: boolean;
+  primaryQuestion: string;
   questionContext: {
     questionType: string;
     decisionType: string;
@@ -98,11 +101,29 @@ export interface ContextBundle {
   readingDepth: 'standard' | 'deep';
 }
 
+export function extractSubQuestions(rawQuestion: string): string[] {
+  const trimmedQuestion = rawQuestion.trim();
+  if (!trimmedQuestion) return [];
+
+  const parts = trimmedQuestion
+    .split(/[?!;।\n]+/g)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 5);
+
+  if (parts.length <= 1) return [trimmedQuestion];
+
+  return parts;
+}
+
 export function buildTarotContextBundle(input: TarotContextInput): ContextBundle {
   const qContext = classifyQuestionContext(input.question, input.topic);
+  const subQuestions = extractSubQuestions(input.question);
   
   return {
     currentQuestion: input.question,
+    subQuestions,
+    hasMultipleQuestions: subQuestions.length > 1,
+    primaryQuestion: subQuestions[0] || input.question,
     questionContext: {
       questionType: qContext.questionType,
       decisionType: qContext.decisionType,
@@ -140,9 +161,13 @@ export function buildTarotContextBundle(input: TarotContextInput): ContextBundle
 
 export function buildKinhDichContextBundle(input: KinhDichContextInput): ContextBundle {
   const qContext = classifyQuestionContext(input.question, input.topic);
+  const subQuestions = extractSubQuestions(input.question);
 
   return {
     currentQuestion: input.question,
+    subQuestions,
+    hasMultipleQuestions: subQuestions.length > 1,
+    primaryQuestion: subQuestions[0] || input.question,
     questionContext: {
       questionType: qContext.questionType,
       decisionType: qContext.decisionType,

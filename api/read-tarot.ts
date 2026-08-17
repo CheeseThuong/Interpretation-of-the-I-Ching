@@ -10,6 +10,9 @@ const ENABLE_AI_SECOND_PASS = true;
 const TAROT_SYSTEM_INSTRUCTION = [
   'Bạn là Tarot reader tiếng Việt chuyên phân tích quyết định và quan hệ.',
   'Luôn trả lời trực tiếp câu hỏi gốc trước, sau đó mới giải thích bằng lá bài.',
+  'Khi người dùng hỏi nhiều câu, phải nhận diện từng câu và trả lời từng câu riêng trong subQuestionAnswers.',
+  'Không bao giờ gộp nhiều câu hỏi thành một kết luận chung chung.',
+  'Mỗi câu trả lời con phải có Có/Không/Có điều kiện/Chưa đủ dữ kiện rõ ràng và chỉ ra lá bài cụ thể hỗ trợ.',
   'Không viết chung chung hoặc dùng mẫu "cần quan sát thêm" nếu không có hành động cụ thể.',
   'Khi câu hỏi là nhắn tin/liên lạc/chủ động, bắt buộc nêu nên hay chưa nên, vì sao, nhắn thế nào và dấu hiệu để dừng.',
   'Trả về JSON hợp lệ theo schema được yêu cầu, không markdown.'
@@ -46,12 +49,10 @@ interface TarotApiRequest {
   };
 }
 
-interface GeminiResponse {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string;
-      }>;
+interface GroqResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
     };
   }>;
 }
@@ -84,6 +85,11 @@ function isWeakTarotReading(
     result.synthesisSummary,
     result.contextualInterpretation,
     result.reasonedInterpretation,
+    ...(result.subQuestionAnswers || []).flatMap((answer) => [
+      answer.question,
+      answer.answer,
+      ...(answer.supportingCards || []),
+    ]),
     ...(result.actionableAdvice || []),
     ...(result.practicalAdvice || []),
     ...(result.positionAnalyses || []).map((position) => position.meaningForUserQuestion),
@@ -115,7 +121,10 @@ function isWeakTarotReading(
     'khuyen ban nen xem xet ky cac yeu to thuc te',
     'tap trung vao hanh dong va y chi',
     'dan trai bai',
+    'tiem nang',
     'co tiem nang phat trien tich cuc',
+    'co the xem xet',
+    'kiem tra:',
     'can quan sat them',
   ];
   const genericHits = normalizedGenericPhrases.filter((phrase) => text.includes(phrase)).length;
@@ -127,16 +136,27 @@ function isWeakTarotReading(
   const missingConcreteMessagingAdvice = isMessagingQuestion(bundle.currentQuestion) &&
     (result.actionableAdvice || result.practicalAdvice || []).length < 2;
   const explicitlyFailedSelfCheck = result.qualitySelfCheck?.directlyAnswersQuestion === false;
+  const explicitlyMissedSubQuestions = result.qualitySelfCheck?.allSubQuestionsAnswered === false;
+  const missingSubQuestionAnswers = bundle.hasMultipleQuestions &&
+    (!result.subQuestionAnswers || result.subQuestionAnswers.length < bundle.subQuestions.length);
+  const invalidSubQuestionAnswers = bundle.hasMultipleQuestions &&
+    (result.subQuestionAnswers || []).some((answer) => {
+      const normalizedAnswer = normalizeVietnameseText(answer.answer || '');
+      return !/^(co|khong|co dieu kien|chua du du kien)/.test(normalizedAnswer);
+    });
 
   return (
     explicitlyFailedSelfCheck ||
+    explicitlyMissedSubQuestions ||
+    missingSubQuestionAnswers ||
+    invalidSubQuestionAnswers ||
     missesMessagingAction ||
     missingConcreteMessagingAdvice ||
     hasSynthesisOnlyPhrase ||
     !hasEnoughPositionWork ||
     cardNamesMentioned < Math.min(cards.length, 2) ||
     genericHits >= 2 ||
-    (result.directAnswer || '').length < 80 ||
+    (result.directAnswer || '').length < 100 ||
     (result.contextualInterpretation || '').length < 80 ||
     (result.synthesisSummary || '').length < 80
   );
@@ -155,6 +175,8 @@ function normalizeVietnameseText(value: string): string {
   return value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
     .toLowerCase();
@@ -217,6 +239,11 @@ function generateTarotFallbackFromBundle(bundle: TarotContextBundle): UnifiedAIR
 
   return {
     questionEcho: bundle.currentQuestion,
+    subQuestionAnswers: (bundle.subQuestions.length ? bundle.subQuestions : [bundle.currentQuestion]).map((question) => ({
+      question,
+      answer: `${synthesis.mainSignal === 'proceed' ? 'Có điều kiện' : synthesis.mainSignal === 'avoid' ? 'Không' : 'Chưa đủ dữ kiện'} - ${synthesis.keyAdvice}`,
+      supportingCards: cards.map((card) => card.nameVi || card.card?.nameVi || card.name || card.card?.name || 'Lá bài'),
+    })),
     directAnswer,
     decisionSignal: synthesis.mainSignal,
     confidenceLevel: 'medium',
@@ -258,6 +285,7 @@ function generateTarotFallbackFromBundle(bundle: TarotContextBundle): UnifiedAIR
     finalMessage: 'Luận giải này ưu tiên dữ liệu trải bài, vị trí và câu hỏi cụ thể; nếu hành động thực tế đổi, xu hướng cũng có thể đổi.',
     qualitySelfCheck: {
       directlyAnswersQuestion: true,
+      allSubQuestionsAnswered: true,
       isContextual: true,
       isTooGeneric: false,
       isTooLong: false,
@@ -303,9 +331,9 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
         : undefined,
     };
 
-    const apiKey = process.env.AI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ error: 'Server is missing AI_API_KEY environment variable' });
+      return res.status(500).json({ error: 'Server is missing GROQ_API_KEY environment variable' });
     }
 
     // Reference Contexts
@@ -329,7 +357,7 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
     }
 
     // Dev Logging
-    console.log('DEV ONLY - Calling Gemini with:', {
+    console.log('DEV ONLY - Calling Groq with:', {
       currentQuestion: contextBundle.currentQuestion,
       questionType: contextBundle.questionContext.questionType,
       memorySummaryIncluded: !!contextBundle.userMemorySummary,
@@ -340,22 +368,25 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
 
     const prompt = buildTarotReadingPrompt(contextBundle);
 
-    async function callGemini(textPrompt: string): Promise<UnifiedAIReadingResponse> {
+    async function callGroq(textPrompt: string): Promise<UnifiedAIReadingResponse> {
       const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        'https://api.groq.com/openai/v1/chat/completions',
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
           body: JSON.stringify({
-            systemInstruction: { parts: [{ text: TAROT_SYSTEM_INSTRUCTION }] },
-            contents: [{ parts: [{ text: textPrompt }] }],
-            generationConfig: {
-              response_mime_type: 'application/json',
-              temperature: 0.85,
-              topP: 0.92,
-              topK: 50,
-              maxOutputTokens: 2048,
-            },
+            model: 'openai/gpt-oss-120b',
+            messages: [
+              { role: 'system', content: TAROT_SYSTEM_INSTRUCTION },
+              { role: 'user', content: textPrompt },
+            ],
+            response_format: { type: 'json_object' },
+            temperature: 0.85,
+            top_p: 0.92,
+            max_tokens: 2048,
           }),
         }
       );
@@ -363,8 +394,8 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
         const errorText = await resp.text();
         throw new Error(`AI API error: ${resp.statusText} - ${errorText}`);
       }
-      const aiData = await resp.json() as GeminiResponse;
-      const responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      const aiData = await resp.json() as GroqResponse;
+      const responseText = aiData.choices?.[0]?.message?.content;
       if (!responseText) {
         throw new Error('AI response is empty or malformed');
       }
@@ -377,13 +408,14 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
     let qualityFailedReason = "N/A";
 
     try {
-      structuredResult = await callGemini(prompt);
+      structuredResult = await callGroq(prompt);
       
       const qc = structuredResult.qualitySelfCheck;
       const needsSecondPass = qc && (
         qc.isTooGeneric === true ||
         qc.isContextual === false ||
         qc.directlyAnswersQuestion === false ||
+        qc.allSubQuestionsAnswered === false ||
         (qc.offTopicWarnings && qc.offTopicWarnings.length > 0) ||
         qc.needsSecondPass === true ||
         !structuredResult.directAnswer ||
@@ -394,7 +426,7 @@ export default async function handler(req: TarotApiRequest, res: ApiResponse) {
         secondPassUsed = true;
         qualityFailedReason = JSON.stringify(qc);
         const finalizerPrompt = buildAIFinalizerPrompt(contextBundle, structuredResult, qc);
-        structuredResult = await callGemini(finalizerPrompt);
+        structuredResult = await callGroq(finalizerPrompt);
       }
     } catch (apiError) {
       console.error('AI Call failed, using fallback:', apiError);

@@ -24,6 +24,8 @@ function normalizeText(value: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
     .toLowerCase();
 }
 
@@ -196,6 +198,29 @@ function getCardMeaning(card: ContextTarotCard): string {
     : (card.meaningUpright || card.card?.meaningUpright || '');
 }
 
+function buildSubQuestionsBlock(context: ContextBundle): string {
+  if (!context.hasMultipleQuestions) {
+    return `Câu hỏi duy nhất: ${JSON.stringify(context.currentQuestion)}`;
+  }
+
+  return `Người dùng có ${context.subQuestions.length} câu hỏi riêng biệt:
+${context.subQuestions.map((question, index) => `${index + 1}. ${JSON.stringify(question)}`).join('\n')}
+
+Câu hỏi chính cần ưu tiên: ${JSON.stringify(context.primaryQuestion)}
+Mỗi câu hỏi con phải có một object tương ứng trong subQuestionAnswers.`;
+}
+
+function buildSubQuestionSchema(context: ContextBundle): string {
+  const questions = context.subQuestions.length > 0 ? context.subQuestions : [context.currentQuestion];
+  return `[
+    ${questions.map((question) => `{
+      "question": ${JSON.stringify(question)},
+      "answer": "Câu mở đầu phải là Có / Không / Có điều kiện / Chưa đủ dữ kiện, sau đó giải thích ngắn bằng lá bài hoặc quẻ cụ thể",
+      "supportingCards": ["Tên lá bài/quẻ/hào hỗ trợ câu trả lời này"]
+    }`).join(',\n    ')}
+  ]`;
+}
+
 function buildUnifiedResponseContract(context: ContextBundle, options: {
   zodiacUsed?: boolean;
   referenceUsed?: boolean;
@@ -206,6 +231,7 @@ function buildUnifiedResponseContract(context: ContextBundle, options: {
 Trả về đúng JSON object theo schema sau. Giữ đủ field, không bỏ field legacy vì UI đang đọc các field này:
 {
   "questionEcho": ${JSON.stringify(context.currentQuestion)},
+  "subQuestionAnswers": ${buildSubQuestionSchema(context)},
   "directAnswer": "2-5 câu trả lời trực tiếp vào câu hỏi, có khuyến nghị hành động rõ và lý do chính",
   "decisionSignal": "proceed | wait | avoid | conditional | unclear | reflection",
   "confidenceLevel": "low | medium | high",
@@ -232,6 +258,7 @@ Trả về đúng JSON object theo schema sau. Giữ đủ field, không bỏ fi
   "finalMessage": "Một câu chốt ngắn, có hình ảnh nhưng vẫn bám câu hỏi",
   "qualitySelfCheck": {
     "directlyAnswersQuestion": true,
+    "allSubQuestionsAnswered": true,
     "isContextual": true,
     "isTooGeneric": false,
     "isTooLong": false,
@@ -245,6 +272,7 @@ Trả về đúng JSON object theo schema sau. Giữ đủ field, không bỏ fi
 export function buildKinhDichReadingPrompt(context: ContextBundle): string {
   const qCtx = context.questionContext;
   const hexagram = context.readingData.hexagram;
+  const subQuestionsBlock = buildSubQuestionsBlock(context);
   const contract = buildUnifiedResponseContract(context, {
     positionAnalyses: '[]',
     symbolicReading: `{
@@ -261,6 +289,8 @@ ${BASE_PROMPT_RULES}
 
 DỮ LIỆU ĐẦU VÀO:
 - Câu hỏi gốc: "${context.currentQuestion}"
+- Tách câu hỏi:
+${subQuestionsBlock}
 - Bối cảnh câu hỏi: ${JSON.stringify(qCtx, null, 2)}
 - Quẻ chủ: ${hexagram?.primary || 'Không có'}
 - Hào động: ${formatPromptValue(hexagram?.movingLines)}
@@ -270,9 +300,12 @@ DỮ LIỆU ĐẦU VÀO:
 - Trí nhớ người dùng: ${context.userMemorySummary || 'Không có'}
 
 CÁCH LUẬN:
+- Bước A: nhận diện từng câu hỏi con. Nếu có nhiều câu hỏi, không gộp thành một kết luận chung; phải trả lời từng câu trong subQuestionAnswers.
 - Đọc quẻ chủ như nền hiện tại, hào động như điểm đang biến, quẻ biến như xu hướng nếu người dùng giữ cùng cách hành xử.
 - Không viết kiểu "Quẻ X có nghĩa là...". Hãy viết: "Trong câu hỏi này, quẻ X cho thấy..."
 - Nếu câu hỏi là lựa chọn/hành động, phải có đáp án có điều kiện và mốc kiểm tra thực tế.
+- Với mỗi câu hỏi con, answer phải mở đầu bằng Có / Không / Có điều kiện / Chưa đủ dữ kiện, rồi chỉ ra quẻ chủ, hào động hoặc quẻ biến nào hỗ trợ.
+- synthesis phải là văn xuôi tự nhiên nối các câu trả lời con thành một bức tranh thống nhất, không dùng bullet.
 - Nếu dữ liệu thiếu, vẫn trả lời nhưng nêu thiếu gì và ảnh hưởng thế nào đến độ tin cậy.
 - Checklist không được bắt đầu bằng "Kiểm tra:" lặp lại máy móc; mỗi item phải là một dữ kiện/hành động rõ.
 
@@ -283,6 +316,7 @@ ${contract}
 export function buildTarotReadingPrompt(context: ContextBundle): string {
   const qCtx = context.questionContext;
   const cards = context.readingData.cards || [];
+  const subQuestionsBlock = buildSubQuestionsBlock(context);
   const cardsStr = cards
     .map((card, index) => {
       const keywords = getCardKeywords(card);
@@ -323,6 +357,8 @@ ${BASE_PROMPT_RULES}
 
 DỮ LIỆU ĐẦU VÀO:
 - Câu hỏi gốc: "${context.currentQuestion}"
+- Tách câu hỏi:
+${subQuestionsBlock}
 - Bối cảnh câu hỏi: ${JSON.stringify(qCtx, null, 2)}
 - Loại trải bài: ${context.readingData.spreadType || 'Không xác định'}
 - Các lá bài:
@@ -334,8 +370,12 @@ ${cardsStr || 'Không có lá bài'}
 - Zodiac reference context: ${context.zodiacReferenceContext || 'Không có'}
 
 CÁCH LUẬN BẮT BUỘC:
+- Bước A: nhận diện từng câu hỏi con. Nếu có nhiều câu hỏi, không gộp thành một câu trả lời chung; phải trả lời từng câu trong subQuestionAnswers.
 - Đọc từng lá theo công thức: vị trí trong spread + tên lá + xuôi/ngược + từ khóa nội bộ + câu hỏi gốc.
 - Phần synthesis phải nối các lá thành một dòng lập luận, không lấy lá đầu làm toàn bộ kết luận.
+- Với mỗi câu hỏi con, answer phải mở đầu bằng Có / Không / Có điều kiện / Chưa đủ dữ kiện, rồi chỉ ra lá bài/vị trí cụ thể hỗ trợ câu trả lời đó.
+- directAnswer chỉ ưu tiên câu hỏi chính, nhưng không được bỏ các câu hỏi phụ.
+- synthesis phải là văn xuôi tự nhiên nối tất cả câu hỏi con thành một bức tranh thống nhất, không dùng bullet.
 - Nếu các lá mâu thuẫn, hãy nói rõ mâu thuẫn đó tạo ra điều kiện hành động nào.
 - Nếu câu hỏi là "nên nhắn tin/liên lạc/chủ động không", directAnswer phải nhắc rõ "nhắn tin", "liên lạc" hoặc "chủ động"; phải đưa khuyến nghị yes/no/conditional và lý do.
 - Với câu hỏi "người đó có nhớ/còn tình cảm không", không khẳng định đọc được tâm trí. Hãy nói dấu hiệu lá bài gợi ý khả năng nhớ, mức chủ động, và dữ kiện đời thực cần xác nhận.
@@ -370,28 +410,44 @@ export function buildAIFinalizerPrompt(context: ContextBundle, draftAnswer: unkn
   const sourceSummary = isTarot
     ? (context.readingData.cards || []).map((card, index) => `${getCardPosition(card, index)}: ${getCardName(card)} ${card.isReversed ? 'ngược' : 'xuôi'}`).join('; ')
     : `Quẻ chủ: ${context.readingData.hexagram?.primary || 'Không có'}; Hào động: ${formatPromptValue(context.readingData.hexagram?.movingLines)}; Quẻ biến: ${context.readingData.hexagram?.changed || 'Không có'}`;
+  const firstResult = draftAnswer as {
+    subQuestionAnswers?: Array<{ question?: string }>;
+  };
+  const answeredQuestions = firstResult.subQuestionAnswers || [];
+  const unansweredQuestions = (context.subQuestions || []).filter((question) => {
+    const questionKey = question.slice(0, 12).toLowerCase();
+    return !answeredQuestions.some((answer) => (answer.question || '').toLowerCase().includes(questionKey));
+  });
 
   return `
-Bạn là biên tập viên cuối của hệ thống AI Oracle. Hãy sửa bản nháp thành JSON cuối cùng sắc hơn, thực tế hơn, bám câu hỏi hơn.
+Lần trả lời đầu cho câu hỏi này CHƯA ĐẠT hoặc cần kiểm tra lại chất lượng:
 
 Câu hỏi gốc: "${context.currentQuestion}"
+Các câu hỏi con cần trả lời:
+${(context.subQuestions || [context.currentQuestion]).map((question, index) => `${index + 1}. ${JSON.stringify(question)}`).join('\n')}
+
+${unansweredQuestions.length > 0
+  ? `Các câu hỏi chưa được trả lời rõ:\n${unansweredQuestions.map((question, index) => `${index + 1}. ${JSON.stringify(question)}`).join('\n')}`
+  : 'Không phát hiện câu hỏi con bị thiếu bằng kiểm tra cơ học, nhưng vẫn phải rà lại toàn bộ.'}
+
 Bối cảnh đã phân loại: ${JSON.stringify(context.questionContext, null, 2)}
 Dữ liệu gieo/rút: ${sourceSummary}
 Synthesis nội bộ: ${formatPromptValue(context.synthesis)}
 Review trước đó: ${review ? JSON.stringify(review, null, 2) : 'Không có'}
 
-Luật biên tập:
-- Giữ nguyên cấu trúc JSON và tên field; chỉ sửa nội dung field.
-- Bổ sung questionEcho nếu thiếu.
-- directAnswer phải trả lời thẳng câu hỏi trong 2-5 câu. Nếu là hành động, mở đầu bằng "Nên...", "Chưa nên...", "Không nên..." hoặc "Chỉ nên nếu...".
-- synthesis và synthesisSummary phải nối toàn bộ lá/quẻ thành một lập luận cụ thể, không được là câu tổng quan rỗng.
-- actionableAdvice/practicalAdvice phải có hành động làm được ngay, không dùng câu "hãy quan sát thêm" nếu không nói quan sát cái gì và trong bao lâu.
-- positionAnalyses phải nhắc đủ từng lá/vị trí nếu là Tarot; symbolicReading phải nhắc đủ quẻ chủ, hào động, quẻ biến nếu là Kinh Dịch.
-- Xóa các cụm chung chung: "năng lượng đang cần sự quan sát", "tâm lý cần cân bằng", "xem xét kỹ yếu tố thực tế", "có tiềm năng phát triển tích cực", "dẫn trải bài".
-- qualitySelfCheck.directlyAnswersQuestion phải là true chỉ khi directAnswer thật sự trả lời câu hỏi; nếu không, hãy tự sửa nội dung trước khi trả về.
-- Trả về JSON hợp lệ, tiếng Việt, không markdown, không giải thích ngoài JSON.
-
-Draft cần cải thiện:
+Kết quả lần đầu để tham khảo, không copy máy móc:
 ${JSON.stringify(draftAnswer, null, 2)}
+
+Hãy viết lại HOÀN TOÀN theo đúng JSON schema cũ, lần này bắt buộc:
+1. questionEcho tóm tắt bạn hiểu người dùng đang hỏi những gì.
+2. subQuestionAnswers trả lời TỪNG câu hỏi con ở trên. Mỗi answer phải mở đầu bằng Có / Không / Có điều kiện / Chưa đủ dữ kiện và nêu lá bài/quẻ cụ thể hỗ trợ trong supportingCards.
+3. directAnswer trả lời câu hỏi chính "${context.primaryQuestion || context.currentQuestion}" tối thiểu 4 câu, có Yes/No/Có điều kiện rõ ràng.
+4. contextualInterpretation đọc từng lá/quẻ theo đúng vị trí/ngữ cảnh, không giải nghĩa chung.
+5. synthesis và synthesisSummary là văn xuôi tự nhiên nối tất cả câu trả lời con, không dùng bullet point.
+6. actionableAdvice tối đa 3 hành động cụ thể, làm được ngay.
+7. Xóa hoàn toàn các cụm: "tiềm năng", "có thể xem xét", "Kiểm tra:", "cần quan sát thêm", "dẫn trải bài".
+8. qualitySelfCheck.directlyAnswersQuestion = true và qualitySelfCheck.allSubQuestionsAnswered = true chỉ khi đã thật sự đạt.
+
+Trả về JSON hợp lệ, tiếng Việt, không markdown, không thêm text ngoài JSON.
 `.trim();
 }

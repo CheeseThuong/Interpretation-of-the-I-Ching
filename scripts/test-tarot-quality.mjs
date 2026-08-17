@@ -17,16 +17,16 @@ function loadEnv() {
     const envPath = resolve(__dirname, '../.env.local');
     const lines = readFileSync(envPath, 'utf8').split('\n');
     for (const line of lines) {
-      const m = line.match(/^AI_API_KEY=(.+)$/);
+      const m = line.match(/^GROQ_API_KEY=(.+)$/);
       if (m) return m[1].trim();
     }
   } catch {}
-  return process.env.AI_API_KEY || '';
+  return process.env.GROQ_API_KEY || '';
 }
 
 const API_KEY = loadEnv();
 if (!API_KEY) {
-  console.error('❌ No AI_API_KEY found in .env.local');
+  console.error('❌ No GROQ_API_KEY found in .env.local');
   process.exit(1);
 }
 
@@ -155,21 +155,27 @@ YÊU CẦU ĐẦU RA — Chỉ trả về JSON hợp lệ, không markdown, khô
 }`;
 }
 
-// ─── Call Gemini ──────────────────────────────────────────────────────────────
-async function callGemini(prompt) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+// ─── Call Groq ────────────────────────────────────────────────────────────────
+async function callGroq(prompt) {
+  const url = 'https://api.groq.com/openai/v1/chat/completions';
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${API_KEY}`,
+    },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { response_mime_type: 'application/json', temperature: 0.5, topP: 0.8, topK: 40 }
+      model: 'openai/gpt-oss-120b',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+      temperature: 0.5,
+      top_p: 0.8,
     })
   });
-  if (!res.ok) throw new Error(`Gemini API error: ${res.statusText} — ${await res.text()}`);
+  if (!res.ok) throw new Error(`Groq API error: ${res.statusText} — ${await res.text()}`);
   const data = await res.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error('Empty response from Gemini');
+  const text = data.choices?.[0]?.message?.content;
+  if (!text) throw new Error('Empty response from Groq');
   return JSON.parse(text);
 }
 
@@ -232,10 +238,10 @@ console.log(' Q: "Có nên bán xe không?" + The Moon (Upright)');
 console.log('═══════════════════════════════════════════════\n');
 
 const prompt = buildTestPrompt();
-console.log('▶ Calling Gemini...\n');
+console.log('▶ Calling Groq...\n');
 
 try {
-  const result = await callGemini(prompt);
+  const result = await callGroq(prompt);
 
   console.log('── RAW RESULT ─────────────────────────────────');
   console.log(JSON.stringify(result, null, 2));

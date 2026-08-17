@@ -6,6 +6,9 @@ const ENABLE_AI_SECOND_PASS = true;
 const KINH_DICH_SYSTEM_INSTRUCTION = [
   'Bạn là chuyên gia Kinh Dịch tiếng Việt theo hướng ứng dụng thực tế.',
   'Luôn trả lời trực tiếp câu hỏi gốc trước, rồi mới giải thích quẻ chủ, hào động và quẻ biến.',
+  'Khi người dùng hỏi nhiều câu, phải nhận diện từng câu và trả lời từng câu riêng trong subQuestionAnswers.',
+  'Không bao giờ gộp nhiều câu hỏi thành một kết luận chung chung.',
+  'Mỗi câu trả lời con phải có Có/Không/Có điều kiện/Chưa đủ dữ kiện rõ ràng và chỉ ra quẻ/hào cụ thể hỗ trợ.',
   'Không viết chung chung hoặc diễn nghĩa quẻ kiểu giáo khoa.',
   'Khi câu hỏi là quyết định/hành động, bắt buộc nêu nên/chưa nên/không nên/chỉ nên nếu điều kiện nào đúng.',
   'Trả về JSON hợp lệ theo schema được yêu cầu, không markdown.'
@@ -31,12 +34,10 @@ interface HexagramApiRequest {
   };
 }
 
-interface GeminiResponse {
-  candidates?: Array<{
-    content?: {
-      parts?: Array<{
-        text?: string;
-      }>;
+interface GroqResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
     };
   }>;
 }
@@ -44,7 +45,9 @@ interface GeminiResponse {
 // Global memory cache for AI responses
 const aiCache = new Map<string, UnifiedAIReadingResponse>();
 
-function generateCacheKey(bundle: ReturnType<typeof buildKinhDichContextBundle>): string {
+type KinhDichContextBundle = ReturnType<typeof buildKinhDichContextBundle>;
+
+function generateCacheKey(bundle: KinhDichContextBundle): string {
   return JSON.stringify({
     q: bundle.currentQuestion.trim().toLowerCase(),
     qt: bundle.questionContext.questionType,
@@ -61,10 +64,12 @@ function normalizeVietnameseText(value: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
     .toLowerCase();
 }
 
-function isWeakKinhDichReading(result: UnifiedAIReadingResponse): boolean {
+function isWeakKinhDichReading(result: UnifiedAIReadingResponse, bundle: KinhDichContextBundle): boolean {
   const text = normalizeVietnameseText([
     result.questionEcho,
     result.directAnswer,
@@ -74,13 +79,21 @@ function isWeakKinhDichReading(result: UnifiedAIReadingResponse): boolean {
     result.reasonedInterpretation,
     result.contextualInterpretation,
     result.psychologicalInterpretation,
+    ...(result.subQuestionAnswers || []).flatMap((answer) => [
+      answer.question,
+      answer.answer,
+      ...(answer.supportingCards || []),
+    ]),
     ...(result.actionableAdvice || []),
     ...(result.practicalAdvice || []),
     ...(result.decisionChecklist || []),
   ].join(' '));
   const genericPhrases = [
     'can quan sat them',
+    'tiem nang',
     'co tiem nang',
+    'co the xem xet',
+    'kiem tra:',
     'can can bang',
     'xem xet ky cac yeu to thuc te',
     'kiem tra lai cac thong tin',
@@ -88,12 +101,22 @@ function isWeakKinhDichReading(result: UnifiedAIReadingResponse): boolean {
     'nang luong hien tai',
   ];
   const genericHits = genericPhrases.filter((phrase) => text.includes(phrase)).length;
+  const missingSubQuestionAnswers = bundle.hasMultipleQuestions &&
+    (!result.subQuestionAnswers || result.subQuestionAnswers.length < bundle.subQuestions.length);
+  const invalidSubQuestionAnswers = bundle.hasMultipleQuestions &&
+    (result.subQuestionAnswers || []).some((answer) => {
+      const normalizedAnswer = normalizeVietnameseText(answer.answer || '');
+      return !/^(co|khong|co dieu kien|chua du du kien)/.test(normalizedAnswer);
+    });
 
   return (
     result.qualitySelfCheck?.directlyAnswersQuestion === false ||
+    result.qualitySelfCheck?.allSubQuestionsAnswered === false ||
+    missingSubQuestionAnswers ||
+    invalidSubQuestionAnswers ||
     !result.directAnswer ||
     !result.contextualInterpretation ||
-    (result.directAnswer || '').length < 80 ||
+    (result.directAnswer || '').length < 100 ||
     (result.contextualInterpretation || '').length < 90 ||
     (result.synthesisSummary || result.synthesis || '').length < 90 ||
     genericHits >= 2
@@ -118,9 +141,9 @@ export default async function handler(req: HexagramApiRequest, res: ApiResponse)
       primaryHexagram: data.primaryHexagram,
     };
 
-    const apiKey = process.env.AI_API_KEY;
+    const apiKey = process.env.GROQ_API_KEY;
     if (!apiKey) {
-      return res.status(500).json({ error: 'Server is missing AI_API_KEY environment variable' });
+      return res.status(500).json({ error: 'Server is missing GROQ_API_KEY environment variable' });
     }
 
     // Build Context Bundle
@@ -135,28 +158,31 @@ export default async function handler(req: HexagramApiRequest, res: ApiResponse)
 
     const prompt = buildKinhDichReadingPrompt(contextBundle);
 
-    async function callGemini(textPrompt: string): Promise<UnifiedAIReadingResponse> {
-      const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+    async function callGroq(textPrompt: string): Promise<UnifiedAIReadingResponse> {
+      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: KINH_DICH_SYSTEM_INSTRUCTION }] },
-          contents: [{ parts: [{ text: textPrompt }] }],
-          generationConfig: {
-            response_mime_type: "application/json",
-            temperature: 0.85,
-            topP: 0.92,
-            topK: 50,
-            maxOutputTokens: 2048
-          }
-        })
+          model: 'openai/gpt-oss-120b',
+          messages: [
+            { role: 'system', content: KINH_DICH_SYSTEM_INSTRUCTION },
+            { role: 'user', content: textPrompt },
+          ],
+          response_format: { type: 'json_object' },
+          temperature: 0.85,
+          top_p: 0.92,
+          max_tokens: 2048,
+        }),
       });
       if (!resp.ok) {
         const errorText = await resp.text();
         throw new Error(`AI API error: ${resp.statusText} - ${errorText}`);
       }
-      const aiData = await resp.json() as GeminiResponse;
-      const responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text;
+      const aiData = await resp.json() as GroqResponse;
+      const responseText = aiData.choices?.[0]?.message?.content;
       if (!responseText) {
         throw new Error('AI response is empty or malformed');
       }
@@ -169,31 +195,32 @@ export default async function handler(req: HexagramApiRequest, res: ApiResponse)
     let qualityFailedReason = "N/A";
 
     try {
-      structuredResult = await callGemini(prompt);
+      structuredResult = await callGroq(prompt);
       
       const qc = structuredResult.qualitySelfCheck;
       const needsSecondPass = qc && (
         qc.isTooGeneric === true ||
         qc.isContextual === false ||
         qc.directlyAnswersQuestion === false ||
+        qc.allSubQuestionsAnswered === false ||
         (qc.offTopicWarnings && qc.offTopicWarnings.length > 0) ||
         qc.needsSecondPass === true ||
         !structuredResult.directAnswer ||
         !structuredResult.contextualInterpretation
-      ) || isWeakKinhDichReading(structuredResult);
+      ) || isWeakKinhDichReading(structuredResult, contextBundle);
 
       if (ENABLE_AI_SECOND_PASS && needsSecondPass) {
         secondPassUsed = true;
         qualityFailedReason = JSON.stringify(qc);
         const finalizerPrompt = buildAIFinalizerPrompt(contextBundle, structuredResult, qc);
-        structuredResult = await callGemini(finalizerPrompt);
+        structuredResult = await callGroq(finalizerPrompt);
       }
     } catch (apiError) {
       console.error('AI Call failed, using fallback:', apiError);
       structuredResult = generateDeterministicFallback(contextBundle);
     }
 
-    if (isWeakKinhDichReading(structuredResult)) {
+    if (isWeakKinhDichReading(structuredResult, contextBundle)) {
       qualityFailedReason = `${qualityFailedReason}; final guard fallback`;
       structuredResult = generateDeterministicFallback(contextBundle);
     }
