@@ -1,5 +1,5 @@
-import { classifyQuestionContext } from './prompts';
-import type { UnifiedAIReadingResponse } from '../../types/ai';
+import { classifyQuestionContext } from './prompts.js';
+import type { UnifiedAIReadingResponse } from '../../types/ai.js';
 
 export interface ContextTarotCard {
   name?: string;

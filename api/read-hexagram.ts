@@ -1,6 +1,6 @@
-import { buildKinhDichReadingPrompt, buildAIFinalizerPrompt } from '../src/lib/ai/prompts';
-import { buildKinhDichContextBundle, validateContextBundle, generateDeterministicFallback } from '../src/lib/ai/contextBundle';
-import type { UnifiedAIReadingResponse } from '../src/types/ai';
+import { buildKinhDichReadingPrompt, buildAIFinalizerPrompt } from '../src/lib/ai/prompts.js';
+import { buildKinhDichContextBundle, validateContextBundle, generateDeterministicFallback } from '../src/lib/ai/contextBundle.js';
+import type { UnifiedAIReadingResponse } from '../src/types/ai.js';
 
 const ENABLE_AI_SECOND_PASS = true;
 const KINH_DICH_SYSTEM_INSTRUCTION = [

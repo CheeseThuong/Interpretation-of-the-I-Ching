@@ -1,10 +1,10 @@
-import { buildTarotReadingPrompt, buildAIFinalizerPrompt } from '../src/lib/ai/prompts';
-import { prepareTarotReferenceContext } from '../src/lib/ai/tarotReference';
-import { prepareZodiacReferenceContext } from '../src/lib/astrology/zodiacReference';
-import { buildTarotContextBundle, validateContextBundle, generateDeterministicFallback } from '../src/lib/ai/contextBundle';
-import type { ContextTarotCard } from '../src/lib/ai/contextBundle';
-import type { UnifiedAIReadingResponse } from '../src/types/ai';
-import { synthesizeTarotReading } from '../src/lib/readings/synthesis';
+import { buildTarotReadingPrompt, buildAIFinalizerPrompt } from '../src/lib/ai/prompts.js';
+import { prepareTarotReferenceContext } from '../src/lib/ai/tarotReference.js';
+import { prepareZodiacReferenceContext } from '../src/lib/astrology/zodiacReference.js';
+import { buildTarotContextBundle, validateContextBundle, generateDeterministicFallback } from '../src/lib/ai/contextBundle.js';
+import type { ContextTarotCard } from '../src/lib/ai/contextBundle.js';
+import type { UnifiedAIReadingResponse } from '../src/types/ai.js';
+import { synthesizeTarotReading } from '../src/lib/readings/synthesis.js';
 
 const ENABLE_AI_SECOND_PASS = true;
 const TAROT_SYSTEM_INSTRUCTION = [

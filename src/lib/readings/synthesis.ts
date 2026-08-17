@@ -1,5 +1,5 @@
-import { classifyQuestionContext } from '../ai/prompts';
-import type { SpreadPositionMeta } from '../../types/tarot';
+import { classifyQuestionContext } from '../ai/prompts.js';
+import type { SpreadPositionMeta } from '../../types/tarot.js';
 
 export type SignalType = 'proceed' | 'wait' | 'avoid' | 'conditional' | 'unclear' | 'reflection';
 

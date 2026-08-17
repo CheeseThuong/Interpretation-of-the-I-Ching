@@ -1,4 +1,4 @@
-import type { ContextBundle, ContextTarotCard } from './contextBundle';
+import type { ContextBundle, ContextTarotCard } from './contextBundle.js';
 
 /**
  * LAYER 1: Question Context Understanding
