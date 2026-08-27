@@ -358,7 +358,7 @@ const InteractiveCoinSection: React.FC = () => {
                   <p className="eyebrow">Kết Quả Gieo Quẻ</p>
                   <h3 style={{ color: 'var(--amber)', fontSize: '1.5rem', marginBottom: '10px' }}>Chủ đề: {metadata.topic}</h3>
                   <p style={{ fontSize: '1.1rem' }}><strong>Hỏi:</strong> "{metadata.question}"</p>
-                  {metadata.notes && <p style={{ fontSize: '0.95rem', fontStyle: 'italic', color: 'var(--muted)' }}>Ghi chú: {metadata.notes}</p>}
+                  {metadata.notes && <p style={{ fontSize: '0.95rem', fontStyle: 'italic', color: 'var(--text-muted)' }}>Ghi chú: {metadata.notes}</p>}
                   
                   <div style={{ display: 'flex', gap: '15px', marginTop: '15px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
                     <span>Lịch dương: {metadata.gregorianDate} {metadata.manualOverride && '(Thủ công)'}</span>

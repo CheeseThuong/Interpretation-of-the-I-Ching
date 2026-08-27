@@ -1,46 +1,17 @@
 import React, { useState, useRef, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 import type { GalleryProject } from '../../types';
 import { galleryProjects } from '../../data/shared';
 import GalleryModal from '../ui/GalleryModal';
+import GalleryFallbackMotif from '../ui/GalleryFallbackMotif';
 
-// ── Fallback Motifs ───────────────────────────────────────────────────────────
-const FallbackMotif: React.FC<{ title: string }> = ({ title }) => {
-  if (title === 'AI Oracle Reading') {
-    return (
-      <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1.2">
-        <circle cx="50" cy="50" r="40" strokeDasharray="2 4" opacity="0.2" />
-        <path d="M35 38H65M35 46H48M52 46H65M35 54H65M35 62H48M52 62H65" strokeWidth="2.5" />
-        <text x="50" y="55" fontSize="14" fill="currentColor" textAnchor="middle" opacity="0.4" style={{fontFamily: 'serif'}}>易</text>
-      </svg>
-    );
-  }
-  if (title === 'Manual Coin Casting') {
-    return (
-      <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1.2">
-        <circle cx="32" cy="42" r="10" />
-        <circle cx="50" cy="42" r="10" />
-        <circle cx="68" cy="42" r="10" />
-        <path d="M35 65H65M35 72H48M52 72H65M35 79H65" strokeWidth="2" opacity="0.5" />
-      </svg>
-    );
-  }
-  if (title.includes('Tarot')) {
-    return (
-      <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1.2">
-        <rect x="35" y="25" width="30" height="50" rx="2" strokeWidth="1.5" />
-        <circle cx="50" cy="50" r="8" strokeDasharray="2 2" />
-        <path d="M45 40 L55 60 M55 40 L45 60" strokeWidth="1" opacity="0.4" />
-      </svg>
-    );
-  }
-  return (
-    <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1">
-      <circle cx="50" cy="50" r="30" strokeDasharray="4 4" opacity="0.2" />
-      <circle cx="50" cy="50" r="18" opacity="0.4" />
-      <path d="M42 50H58M50 42V58" strokeWidth="0.5" opacity="0.3" />
-    </svg>
-  );
-};
+const badgeClasses =
+  'inline-flex items-center rounded-full bg-accent px-2.5 py-1.5 text-[0.75rem] font-black text-gold-soft';
+
+// Shimmer placeholder shown behind the image while it loads (before/loaded state).
+const imageLoaderClasses = (loaded: boolean) =>
+  !loaded &&
+  "before:absolute before:inset-0 before:z-[1] before:animate-[shimmer_1.3s_linear_infinite] before:[background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.05),rgba(255,255,255,0)),var(--bg-card-soft)] before:[background-size:220%_100%] before:content-['']";
 
 // ── Project card ───────────────────────────────────────────────────────────────
 interface ProjectCardProps {
@@ -51,14 +22,20 @@ interface ProjectCardProps {
 const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) => {
   const [imgLoaded, setImgLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const loaded = imgLoaded || hasError;
 
   return (
     <button
       type="button"
-      className="project-card"
       onClick={() => onClick(project)}
+      className="group flex-[0_0_360px] overflow-hidden rounded-[28px] border border-border bg-card text-left shadow-[var(--shadow-card)] transition-[transform,box-shadow] duration-[220ms] ease-out hover:-translate-y-1.5 hover:border-[var(--border-gold)] hover:shadow-[var(--shadow-soft)] max-[760px]:flex-[0_0_82vw]"
     >
-      <div className={`project-image image-loader${imgLoaded || hasError ? ' loaded' : ''}`}>
+      <div
+        className={cn(
+          'relative flex h-[250px] items-center justify-center overflow-hidden bg-card-soft text-[var(--gold-muted)]',
+          imageLoaderClasses(loaded),
+        )}
+      >
         {!hasError ? (
           <img
             src={project.image}
@@ -67,21 +44,22 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) => {
             draggable={false}
             onLoad={() => setImgLoaded(true)}
             onError={() => setHasError(true)}
+            className="relative z-[2] h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-110"
           />
         ) : (
-          <FallbackMotif title={project.title} />
+          <GalleryFallbackMotif title={project.title} />
         )}
-        <div className="project-overlay">
+        <div className="absolute inset-0 z-[3] flex items-end p-[22px] opacity-0 transition-[background,opacity] duration-200 ease-out group-hover:bg-black/66 group-hover:opacity-100">
           <div>
-            <span className="data-badge">{project.tag}</span>
-            <h3>{project.title}</h3>
+            <span className={badgeClasses}>{project.tag}</span>
+            <h3 className="m-0 text-[1.55rem] text-foreground">{project.title}</h3>
           </div>
         </div>
       </div>
-      <div className="project-body">
-        <span className="data-badge">{project.tag}</span>
-        <h3>{project.title}</h3>
-        <p>{project.description}</p>
+      <div className="p-5">
+        <span className={badgeClasses}>{project.tag}</span>
+        <h3 className="mt-1.5 mb-2 text-[1.1rem] text-foreground">{project.title}</h3>
+        <p className="m-0 text-[0.93rem] leading-[1.7] text-[var(--text-secondary)]">{project.description}</p>
       </div>
     </button>
   );
@@ -128,19 +106,26 @@ const GallerySection: React.FC = () => {
   }, []);
 
   return (
-    <section className="section dark-section section-anchor" id="gallery">
-      <div className="container">
-        <div className="section-title reveal light-title">
-          <p className="eyebrow">Hành Trình Khám Phá</p>
-          <h2>Khám Phá Các Tính Năng</h2>
-          <p>Trải nghiệm hệ sinh thái tâm linh kết hợp giữa trí tuệ cổ xưa và công nghệ AI hiện đại.</p>
+    <section id="gallery" className="section-anchor bg-[var(--bg-section)] py-[88px] text-foreground">
+      <div className="mx-auto w-[min(var(--container),calc(100%-32px))]">
+        <div className="reveal mx-auto mb-11 max-w-[780px] text-center">
+          <p className="mb-2.5 text-[0.78rem] font-black uppercase tracking-[0.22em] text-gold">
+            Hành Trình Khám Phá
+          </p>
+          <h2 className="m-0 font-heading text-[clamp(2.1rem,4vw,3.2rem)] leading-[1.05] tracking-[-0.055em] text-foreground">
+            Khám Phá Các Tính Năng
+          </h2>
+          <p className="mx-auto mt-4 leading-[1.8] text-muted-foreground">
+            Trải nghiệm hệ sinh thái tâm linh kết hợp giữa trí tuệ cổ xưa và công nghệ AI hiện đại.
+          </p>
         </div>
 
-        <div className="drag-hint reveal">Kéo ngang để khám phá • Bấm để xem chi tiết</div>
+        <div className="reveal mb-[22px] inline-flex rounded-[22px] border border-white/8 bg-white/6 px-[18px] py-3 text-[0.88rem] font-bold text-[var(--text-secondary)]">
+          Kéo ngang để khám phá • Bấm để xem chi tiết
+        </div>
 
         <div
-          className="gallery-track reveal"
-          id="galleryTrack"
+          className="reveal flex cursor-grab select-none gap-5 overflow-x-auto px-1 pt-1 pb-[22px] [scrollbar-width:none] [&.dragging]:cursor-grabbing [&::-webkit-scrollbar]:hidden"
           aria-label="Gallery kéo ngang"
           ref={trackRef}
           onMouseDown={onMouseDown}

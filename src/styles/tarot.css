@@ -334,7 +334,7 @@
 }
 
 .tarot-card-front .card-title {
-  font-family: 'Playfair Display', serif;
+  font-family: 'Instrument Serif', serif;
   font-weight: bold;
   font-size: 0.95rem;
   margin-top: auto;
@@ -358,7 +358,7 @@
   position: absolute;
   top: 12px;
   font-size: 1.15rem;
-  font-family: 'Playfair Display', serif;
+  font-family: 'Instrument Serif', serif;
   color: rgba(212, 175, 55, 0.9);
   font-weight: bold;
   text-shadow: 0 2px 5px rgba(0,0,0,0.9);
@@ -486,7 +486,7 @@
   color: var(--amber);
   margin-bottom: 8px;
   font-size: 1.2rem;
-  font-family: 'Playfair Display', serif;
+  font-family: 'Instrument Serif', serif;
 }
 
 .tarot-result-card .keywords {

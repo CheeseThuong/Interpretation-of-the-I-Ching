@@ -38,3 +38,6 @@ coverage
 
 .vercel
 .env*.local
+
+# Claude Code project-local state (worktrees for background agents, etc.)
+.claude/

@@ -1,8 +1,17 @@
+/* Plain @import url(...) rules must precede any expanded CSS content —
+   Tailwind's own @import below is inlined into real rules by the build,
+   so the Google Fonts imports have to come first or the browser drops them. */
 /* =========================
    GOOGLE FONTS
 ========================= */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap');
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 /* =========================
    GLOBAL SETUP
@@ -31,15 +40,18 @@
   --white: #ffffff;
   --black: #000000;
   --text: var(--text-primary);
-  --muted: var(--text-muted);
   --line: var(--border-soft);
   --amber: var(--gold);
   --amber-light: rgba(201, 162, 39, 0.15);
   --stone: var(--bg-card);
   --dark: var(--bg-section);
   --dark-soft: var(--bg-card-soft);
-  --radius-xl: 28px;
-  --radius-lg: 22px;
+  /* Note: named --panel-radius-* (not --radius-*) because Tailwind v4 reserves
+     the --radius-* namespace for its own rounded-* utility scale; shadcn's
+     @theme inline block below defines its own --radius-lg/-xl derived from
+     --radius, so reusing those names here would silently collide. */
+  --panel-radius-xl: 28px;
+  --panel-radius-lg: 22px;
   --shadow-soft: 0 18px 45px rgba(0,0,0,0.4);
   --shadow-card: 0 10px 30px rgba(0,0,0,0.6);
   --container: 1180px;
@@ -56,6 +68,45 @@
   --t-muted:     var(--text-subtle);
   --t-accent:    var(--gold-soft);
   --t-on-light:  var(--text-on-light);
+  /* ── shadcn/ui semantic tokens, remapped to the brand palette above ──
+     (shadcn's own init writes light neutral oklch() defaults here; this
+     project is dark-only with no light/dark toggle, so we point every
+     shadcn token straight at our existing brand variables instead of
+     keeping the generated light-theme defaults or introducing a .dark
+     variant nobody will ever toggle.) */
+  --background: var(--bg-main);
+  --foreground: var(--text-primary);
+  --card: var(--bg-card);
+  --card-foreground: var(--text-primary);
+  --popover: var(--bg-card-soft);
+  --popover-foreground: var(--text-primary);
+  --primary: var(--gold);
+  --primary-foreground: var(--text-on-light);
+  --secondary: var(--bg-card-soft);
+  --secondary-foreground: var(--text-primary);
+  --muted: var(--bg-card-soft);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--amber-light);
+  --accent-foreground: var(--gold-soft);
+  --destructive: #D71920;
+  --destructive-foreground: var(--text-primary);
+  --border: var(--border-soft);
+  --input: var(--border-soft);
+  --ring: var(--gold);
+  --chart-1: var(--gold);
+  --chart-2: var(--accent-purple);
+  --chart-3: var(--accent-blue);
+  --chart-4: var(--gold-soft);
+  --chart-5: var(--text-muted);
+  --radius: 0.625rem;
+  --sidebar: var(--bg-card);
+  --sidebar-foreground: var(--text-primary);
+  --sidebar-primary: var(--gold);
+  --sidebar-primary-foreground: var(--text-on-light);
+  --sidebar-accent: var(--amber-light);
+  --sidebar-accent-foreground: var(--gold-soft);
+  --sidebar-border: var(--border-soft);
+  --sidebar-ring: var(--gold);
 }
 *{box-sizing:border-box}
 html{scroll-behavior:smooth;scroll-padding-top:92px}
@@ -119,7 +170,7 @@ button:focus-visible,a:focus-visible,textarea:focus-visible,select:focus-visible
 .hero-card{padding:18px;border:1px solid var(--border-gold);border-radius:34px;background:rgba(16,16,26,0.85);box-shadow:var(--shadow-soft);backdrop-filter:blur(12px)}
 
 /* PANELS / CARDS */
-.panel{padding:26px;border:1px solid var(--glass-border);border-radius:var(--radius-xl);background:var(--glass-bg);box-shadow:var(--shadow-card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.panel{padding:26px;border:1px solid var(--glass-border);border-radius:var(--panel-radius-xl);background:var(--glass-bg);box-shadow:var(--shadow-card);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .beige-panel{background:var(--glass-bg)}
 .dark-panel{background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-soft)}
 .dark-card{background:var(--bg-card);color:var(--text-primary);border:1px solid var(--border-soft);backdrop-filter:blur(12px)}
@@ -335,7 +386,7 @@ input{width:100%;border:1px solid var(--line);border-radius:18px;background:var(
 
 /* DATA SOURCES */
 .data-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-.data-card{padding:24px;border:1px solid var(--line);border-radius:var(--radius-xl);background:var(--bg-card);box-shadow:var(--shadow-card)}
+.data-card{padding:24px;border:1px solid var(--line);border-radius:var(--panel-radius-xl);background:var(--bg-card);box-shadow:var(--shadow-card)}
 .data-badge{display:inline-flex;padding:6px 10px;border-radius:999px;background:var(--amber-light);color:var(--gold-soft);font-size:.75rem;font-weight:900}
 .data-card h3{margin:18px 0 10px;font-size:1.16rem;color:var(--text-primary)}
 .data-card p,.schema-card p{margin:0;color:var(--text-secondary);line-height:1.72}
@@ -347,38 +398,10 @@ input{width:100%;border:1px solid var(--line);border-radius:18px;background:var(
 .schema-card h4{margin:14px 0 8px;color:var(--text-primary)}
 
 /* GALLERY */
-.drag-hint{display:inline-flex;margin-bottom:22px;padding:12px 18px;border-radius:22px;background:rgba(255,255,255,0.06);color:var(--t-body);font-weight:700;font-size:.88rem;border:1px solid rgba(255,255,255,0.08)}
-.gallery-track{display:flex;gap:20px;overflow-x:auto;padding:4px 4px 22px;cursor:grab;scrollbar-width:none;user-select:none}
-.gallery-track::-webkit-scrollbar{display:none}
-.gallery-track.dragging{cursor:grabbing}
-.project-card{flex:0 0 360px;overflow:hidden;border:1px solid var(--border-soft);border-radius:var(--radius-xl);background:var(--bg-card);text-align:left;cursor:pointer;box-shadow:var(--shadow-card);transition:transform 220ms ease,box-shadow 220ms ease}
-.project-card:hover{transform:translateY(-6px);box-shadow:var(--shadow-soft);border-color:var(--border-gold)}
-.project-image{position:relative;height:250px;overflow:hidden;background:var(--bg-card-soft);display:flex;align-items:center;justify-content:center;color:var(--gold-muted)}
-.image-loader::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.05),rgba(255,255,255,0)),var(--bg-card-soft);background-size:220% 100%;animation:shimmer 1.3s linear infinite;z-index:1}
-.image-loader.loaded::before{display:none}
-.project-image img,.modal-image-wrap img{width:100%;height:100%;object-fit:cover;position:relative;z-index:2}
-.project-image img{transition:transform 700ms ease,opacity 240ms ease}
-.project-card:hover .project-image img{transform:scale(1.1)}
-.project-overlay{position:absolute;inset:0;display:flex;align-items:end;padding:22px;background:rgba(0,0,0,0);color:var(--text-primary);opacity:0;transition:background 220ms ease,opacity 220ms ease;z-index:3}
-.project-card:hover .project-overlay{background:rgba(0,0,0,.66);opacity:1}
-.project-overlay h3{margin:0;font-size:1.55rem;color:var(--text-primary)}
-.project-body{padding:20px}
-.project-body h3{margin:6px 0 8px;color:var(--text-primary);font-size:1.1rem}
-.project-body p{margin:0;color:var(--text-secondary);line-height:1.7;font-size:.93rem}
+/* GallerySection.tsx and GalleryModal.tsx are Tailwind-only now (see those
+   files); this keyframe remains because Tailwind v4 arbitrary animate-[...]
+   utilities still need a real @keyframes rule to point at. */
 @keyframes shimmer{to{background-position:-220% 0}}
-.modal-backdrop{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.8);opacity:0;pointer-events:none;backdrop-filter:blur(12px);transition:opacity 220ms ease}
-.modal-backdrop.open{opacity:1;pointer-events:auto}
-.modal{position:relative;width:min(760px,100%);max-height:90vh;overflow:auto;border-radius:32px;background:var(--bg-card);color:var(--text-primary);box-shadow:0 32px 90px rgba(0,0,0,.6);transform:scale(.92) translateY(22px);transition:transform 220ms ease;border:1px solid var(--border-soft)}
-.modal-backdrop.open .modal{transform:scale(1) translateY(0)}
-.modal-close{position:absolute;top:16px;right:16px;z-index:4;width:42px;height:42px;border:1px solid var(--border-soft);border-radius:999px;background:rgba(10,10,15,.9);color:var(--text-primary);cursor:pointer;font-size:2rem;line-height:1;transition:background 200ms ease}
-.modal-close:hover{background:var(--bg-card-soft);color:var(--gold)}
-.modal-image-wrap{position:relative;height:310px;overflow:hidden;background:var(--bg-card-soft);display:flex;align-items:center;justify-content:center;color:var(--gold-muted)}
-.modal-content{padding:26px}
-.modal-content h3{margin:13px 0 10px;font-size:2rem;color:var(--text-primary)}
-.modal-content p{margin:0;color:var(--text-secondary);line-height:1.75}
-
-/* Broken Image Fallback SVG */
-.fallback-motif { width: 64px; height: 64px; opacity: 0.6; }
 
 /* CHECKLIST / FOOTER */
 .checklist-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
@@ -448,7 +471,6 @@ input{width:100%;border:1px solid var(--line);border-radius:18px;background:var(
   .oracle-header,.result-header{flex-direction:column}
   .symbol-badge{width:100%}
   .line-input-row{grid-template-columns:1fr}
-  .project-card{flex-basis:82vw}
   .footer-inner{flex-direction:column}
   .palace-comparison,.manual-tables{grid-template-columns:1fr}
   .download-actions .button{width:100%}
@@ -596,3 +618,69 @@ input{width:100%;border:1px solid var(--line);border-radius:18px;background:var(
   pointer-events: none;
 }
 
+@theme inline {
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-heading: "Instrument Serif", serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  /* Extra brand-token utilities (beyond shadcn's base semantic set) —
+     lets components write bg-gold-soft/text-gold-soft/bg-card-soft/etc.
+     as real Tailwind utilities instead of var(--...) arbitrary values. */
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+  --color-gold-muted: var(--gold-muted);
+  --color-card-soft: var(--bg-card-soft);
+  --color-border-gold: var(--border-gold);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/* No .dark override block: this app has no light/dark toggle — the :root
+   palette above IS the (only, dark) theme. */
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}

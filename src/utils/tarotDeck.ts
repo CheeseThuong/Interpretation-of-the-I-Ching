@@ -25,7 +25,7 @@ export function shuffleTarotDeck(deck: TarotCard[]): TarotCard[] {
   return a;
 }
 
-// ─── Draw n unique cards from a freshly shuffled deck ────────────────────────
+// ─── Draw n unique cards from a freshly shuffled deck (atomic "quick draw") ──
 export function drawTarotCards(
   deck: TarotCard[],
   count: number,
@@ -37,6 +37,30 @@ export function drawTarotCards(
     isReversed: secureRandom() > 0.6, // ~40% reversed
     positionName: spread.positions[i] ?? `Lá ${i + 1}`,
   }));
+}
+
+// ─── Pick exactly one card by its current grid index (manual pick-grid) ─────
+// Unlike drawTarotCards, this does NOT re-shuffle — the deck must already be
+// shuffled once (via shuffleTarotDeck) before the user starts picking, so
+// randomness/fairness comes entirely from that shuffle. Each call resolves
+// one card at `index`, assigns it the next spread position, and returns the
+// deck with that card removed so subsequent picks target the remaining cards.
+export function pickCardAtIndex(
+  deck: TarotCard[],
+  index: number,
+  positionName: string
+): { drawnCard: DrawnCard; remainingDeck: TarotCard[] } {
+  if (index < 0 || index >= deck.length) {
+    throw new RangeError(`pickCardAtIndex: index ${index} out of bounds for deck of length ${deck.length}`);
+  }
+  const card = deck[index];
+  const drawnCard: DrawnCard = {
+    card,
+    isReversed: secureRandom() > 0.6, // same ~40% reversed distribution as drawTarotCards
+    positionName,
+  };
+  const remainingDeck = [...deck.slice(0, index), ...deck.slice(index + 1)];
+  return { drawnCard, remainingDeck };
 }
 
 // ─── Full 78-card deck ────────────────────────────────────────────────────────

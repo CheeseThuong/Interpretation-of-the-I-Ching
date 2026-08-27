@@ -15,6 +15,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Path aliases (shadcn/ui) — no baseUrl: TS 5101 deprecates it, and
+       since TS 4.1 `paths` resolve relative to this tsconfig file without it. */
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

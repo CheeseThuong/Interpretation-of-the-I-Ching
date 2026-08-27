@@ -4,7 +4,7 @@ import { SPREADS } from '../../data/tarot';
 import type { TarotSpread, TarotCard, DrawnCard } from '../../types/tarot';
 import { isWeakTarotAIResponse, mockAITarotReading } from '../../utils/mockAI';
 import AIReadingDisplay from '../ui/AIReadingDisplay';
-import { createFreshTarotDeck, shuffleTarotDeck, drawTarotCards } from '../../utils/tarotDeck';
+import { createFreshTarotDeck, shuffleTarotDeck, drawTarotCards, pickCardAtIndex } from '../../utils/tarotDeck';
 import { synthesizeTarotReading } from '../../lib/readings/synthesis';
 import type { TarotSynthesis } from '../../lib/readings/synthesis';
 import { TarotSynthesisDisplay } from '../ui/ReadingSynthesis';
@@ -14,6 +14,11 @@ import TarotLandingPage from '../tarot/TarotLandingPage';
 import { saveReadingToLocalMemory, getLocalReadingHistory } from '../../lib/memory/localReadingMemory';
 import { buildUserProfileFromHistory, buildMemorySummaryForPrompt } from '../../lib/memory/userProfile';
 import type { UnifiedAIReadingResponse } from '../../types/ai';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 type TarotStep = 'landing' | 'select-spread' | 'shuffle' | 'draw' | 'result';
 
@@ -28,14 +33,17 @@ const TarotSection: React.FC = () => {
   const [step, setStep] = useState<TarotStep>(initialSpread ? 'shuffle' : 'landing');
   const [question, setQuestion] = useState('');
   const [selectedSpread, setSelectedSpread] = useState<TarotSpread | null>(initialSpread);
-  
+
   const readingStartRef = React.useRef<HTMLDivElement>(null);
-  
+
   // Deck state
   const [deck, setDeck] = useState<TarotCard[]>(() => (initialSpread ? createFreshTarotDeck() : []));
   const [drawnCards, setDrawnCards] = useState<DrawnCard[]>([]);
   const [isShuffling, setIsShuffling] = useState(false);
-  
+  // Which grid-card indices (in the current `deck` array) the user has tapped so far,
+  // in pick order — used only to render the "already tapped" visual state in the grid.
+  const [pickedGridIndices, setPickedGridIndices] = useState<number[]>([]);
+
   // AI Reading State
   const [aiState, setAiState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [aiResponse, setAiResponse] = useState<UnifiedAIReadingResponse | null>(null);
@@ -58,6 +66,7 @@ const TarotSection: React.FC = () => {
     // Start with a fresh full 78-card deck (not shuffled yet — shuffle happens on handleShuffle)
     setDeck(createFreshTarotDeck());
     setDrawnCards([]);
+    setPickedGridIndices([]);
     setStep('shuffle');
 
     setTimeout(() => {
@@ -78,45 +87,59 @@ const TarotSection: React.FC = () => {
       setIsShuffling(false);
       // Fisher-Yates with crypto-safe random — fresh shuffle every time
       setDeck(shuffleTarotDeck(createFreshTarotDeck()));
+      setPickedGridIndices([]);
       setStep('draw');
     }, 2000);
   };
 
-  const handleDrawCard = () => {
-    if (!selectedSpread) return;
-    if (drawnCards.length >= selectedSpread.cardCount) return;
-    // On first draw, atomically draw ALL required cards at once from the shuffled deck.
-    // This prevents duplicate cards and ensures each spread gets a unique set.
-    if (drawnCards.length === 0) {
-      const allDrawn = drawTarotCards(deck, selectedSpread.cardCount, selectedSpread);
-      setDrawnCards(allDrawn);
-      setDeck(prev => prev.slice(selectedSpread.cardCount));
-      setIsRevealing(true);
-      setTimeout(() => {
-        setStep('result');
-        selectedSpread.positions.forEach((_, idx) => {
-          setTimeout(() => {
-            setRevealedIndices(prev => [...prev, idx]);
-          }, 800 + (idx * 600));
-        });
-        const revealDone = 800 + (selectedSpread.cardCount * 600) + 500;
+  const runRevealAndSynthesis = (allDrawn: DrawnCard[], spread: TarotSpread) => {
+    setIsRevealing(true);
+    setTimeout(() => {
+      setStep('result');
+      spread.positions.forEach((_, idx) => {
         setTimeout(() => {
-          setIsRevealing(false);
-          // Compute synthesis after all cards are revealed
-          const syn = synthesizeTarotReading({
-            question,
-            spreadId:   selectedSpread.id,
-            spreadName: selectedSpread.name,
-            drawnCards: allDrawn,
-            positionMeta: selectedSpread.positionMeta,
-          });
-          setSynthesis(syn);
-        }, revealDone);
-      }, 1000);
-      return;
+          setRevealedIndices(prev => [...prev, idx]);
+        }, 800 + (idx * 600));
+      });
+      const revealDone = 800 + (spread.cardCount * 600) + 500;
+      setTimeout(() => {
+        setIsRevealing(false);
+        const syn = synthesizeTarotReading({
+          question,
+          spreadId: spread.id,
+          spreadName: spread.name,
+          drawnCards: allDrawn,
+          positionMeta: spread.positionMeta,
+        });
+        setSynthesis(syn);
+      }, revealDone);
+    }, 1000);
+  };
+
+  // User taps one face-down card in the 78-card grid to fill the next spread position.
+  const handlePickCard = (gridIndex: number) => {
+    if (!selectedSpread) return;
+    if (isRevealing || drawnCards.length >= selectedSpread.cardCount) return;
+    if (pickedGridIndices.includes(gridIndex)) return;
+
+    const positionName = selectedSpread.positions[drawnCards.length] ?? `Lá ${drawnCards.length + 1}`;
+    const { drawnCard } = pickCardAtIndex(deck, gridIndex, positionName);
+    const nextDrawn = [...drawnCards, drawnCard];
+    setDrawnCards(nextDrawn);
+    setPickedGridIndices(prev => [...prev, gridIndex]);
+
+    if (nextDrawn.length >= selectedSpread.cardCount) {
+      runRevealAndSynthesis(nextDrawn, selectedSpread);
     }
-    // Guard: if already drawing, do nothing
-    if (drawnCards.length >= selectedSpread.cardCount) return;
+  };
+
+  // "Rút nhanh tất cả" — atomic shortcut for anyone who wants to skip manual picking.
+  const handleQuickDrawAll = () => {
+    if (!selectedSpread || isRevealing || drawnCards.length > 0) return;
+    const allDrawn = drawTarotCards(deck, selectedSpread.cardCount, selectedSpread);
+    setDrawnCards(allDrawn);
+    setPickedGridIndices(Array.from({ length: selectedSpread.cardCount }, (_, i) => i));
+    runRevealAndSynthesis(allDrawn, selectedSpread);
   };
 
   const handleGetAIReading = async () => {
@@ -220,6 +243,7 @@ const TarotSection: React.FC = () => {
     setSelectedSpread(null);
     setDeck([]);
     setDrawnCards([]);
+    setPickedGridIndices([]);
     setRevealedIndices([]);
     setIsRevealing(false);
     setAiState('idle');
@@ -232,11 +256,11 @@ const TarotSection: React.FC = () => {
   return (
     <section className="tarot-section">
       <div className="tarot-stars-bg"></div>
-      
+
       <div className="tarot-container">
-        
+
         {step === 'landing' && (
-          <TarotLandingPage 
+          <TarotLandingPage
             onStart={() => setStep('select-spread')}
             onSelectSpread={(spreadId) => {
               const spread = SPREADS.find(s => s.id === spreadId);
@@ -248,44 +272,50 @@ const TarotSection: React.FC = () => {
         )}
 
         {step === 'select-spread' && (
-          <div className="fade-in" style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
-            <h2 style={{ color: 'var(--amber)', fontSize: '2.4rem', marginBottom: '15px', fontFamily: '"Playfair Display", serif' }}>Trải Bài Tarot</h2>
-            <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '1.1rem' }}>Chọn một trải bài phù hợp với vấn đề bạn đang tìm kiếm để bắt đầu nghi thức.</p>
-            
-            <div className="spread-grid">
+          <div className="fade-in mx-auto max-w-[800px] text-center">
+            <h2 className="mb-4 font-heading text-4xl text-gold-soft">Trải Bài Tarot</h2>
+            <p className="text-lg text-foreground/70">Chọn một trải bài phù hợp với vấn đề bạn đang tìm kiếm để bắt đầu nghi thức.</p>
+
+            <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {SPREADS.map(spread => (
-                <div key={spread.id} className="spread-card" onClick={(e) => handleSelectSpread(spread, e)}>
-                  <h3>{spread.name}</h3>
-                  <p>{spread.description}</p>
-                  <p style={{ color: '#a0b8ff', fontSize: '0.8rem', marginTop: '10px' }}>Số lá bài: {spread.cardCount}</p>
-                </div>
+                <Card
+                  key={spread.id}
+                  className="cursor-pointer border-border-gold/40 bg-card-soft text-left transition-transform hover:-translate-y-1 hover:shadow-[var(--shadow-card)]"
+                  onClick={(e) => handleSelectSpread(spread, e)}
+                >
+                  <CardContent>
+                    <h3 className="mb-2 font-heading text-xl text-gold-soft">{spread.name}</h3>
+                    <p className="text-sm text-muted-foreground">{spread.description}</p>
+                    <p className="mt-2.5 text-[0.8rem] text-[#a0b8ff]">Số lá bài: {spread.cardCount}</p>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           </div>
         )}
 
         {step === 'shuffle' && selectedSpread && (
-          <div ref={readingStartRef} className="tarot-reading-flow fade-in" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto' }}>
-            <h3 style={{ color: 'var(--amber)', marginBottom: '30px', fontSize: '1.8rem', fontFamily: '"Playfair Display", serif' }}>{selectedSpread.name}</h3>
+          <div ref={readingStartRef} className="tarot-reading-flow fade-in mx-auto max-w-[600px] text-center">
+            <h3 className="mb-7 font-heading text-3xl text-gold-soft">{selectedSpread.name}</h3>
 
-            <textarea
+            <Textarea
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="Tập trung ý niệm và nhập câu hỏi của bạn..."
               rows={3}
-              style={{ width: '100%', maxWidth: '500px', marginBottom: '20px', background: 'rgba(10,5,20,0.6)', color: '#fff', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '12px', padding: '15px', fontSize: '1rem', backdropFilter: 'blur(10px)', resize: 'vertical' }}
+              className="mx-auto mb-5 max-w-[500px] resize-y border-gold-soft/30 bg-[rgba(10,5,20,0.6)] text-base text-white backdrop-blur-[10px] placeholder:text-white/40"
             />
 
             {/* Ngày sinh — tuỳ chọn, dùng để xác định cung hoàng đạo */}
-            <div style={{ maxWidth: '500px', margin: '0 auto 28px', textAlign: 'left' }}>
+            <div className="mx-auto mb-7 max-w-[500px] text-left">
               <label
                 htmlFor="tarot-birth-date"
-                style={{ display: 'block', color: 'rgba(212,175,55,0.85)', fontSize: '0.85rem', marginBottom: '6px', letterSpacing: '0.5px' }}
+                className="mb-1.5 block text-[0.85rem] tracking-wide text-gold-soft/85"
               >
                 Ngày sinh của bạn
               </label>
               {/* Controlled dd/mm/yyyy input — avoids browser locale differences with type="date" */}
-              <input
+              <Input
                 id="tarot-birth-date"
                 type="text"
                 inputMode="numeric"
@@ -316,22 +346,13 @@ const TarotSection: React.FC = () => {
                     setZodiacLens(null);
                   }
                 }}
-                style={{
-                  width: '100%',
-                  background: 'rgba(10,5,20,0.6)',
-                  color: '#fff',
-                  border: '1px solid rgba(212,175,55,0.25)',
-                  borderRadius: '10px',
-                  padding: '10px 14px',
-                  fontSize: '0.95rem',
-                  letterSpacing: '1px',
-                }}
+                className="h-auto border-gold-soft/25 bg-[rgba(10,5,20,0.6)] py-2.5 text-[0.95rem] tracking-wider text-white"
               />
-              <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
+              <p className="mt-1.5 text-xs leading-relaxed text-white/40">
                 Dùng để xác định cung hoàng đạo và cá nhân hóa luận giải. Bạn có thể bỏ qua nếu không muốn.
               </p>
               {zodiacLens && (
-                <div style={{ marginTop: '10px', padding: '8px 14px', borderRadius: '8px', background: 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.2)', fontSize: '0.82rem', color: 'rgba(167,139,250,0.9)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="mt-2.5 flex items-center gap-2 rounded-lg border border-[rgba(167,139,250,0.2)] bg-[rgba(167,139,250,0.08)] px-3.5 py-2 text-[0.82rem] text-[rgba(167,139,250,0.9)]">
                   <span>&#9885;</span>
                   <span>Cung {zodiacLens.viName} ({zodiacLens.sign}) - {zodiacLens.element === 'fire' ? 'Lửa' : zodiacLens.element === 'earth' ? 'Đất' : zodiacLens.element === 'air' ? 'Khí' : 'Nước'}</span>
                 </div>
@@ -349,43 +370,70 @@ const TarotSection: React.FC = () => {
                   </div>
                 ))}
               </div>
-              
-              <button onClick={handleShuffle} disabled={isShuffling} className="button primary-button" style={{ background: 'var(--amber)', color: '#000' }}>
+
+              <Button
+                onClick={handleShuffle}
+                disabled={isShuffling}
+                size="lg"
+                className="h-12 rounded-2xl bg-gold px-6 text-base font-extrabold text-[#000] hover:bg-gold-soft"
+              >
                 {isShuffling ? 'Đang tráo bài...' : 'Tráo bài'}
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
         {step === 'draw' && selectedSpread && (
-          <div className="fade-in" style={{ textAlign: 'center' }}>
-            <h3 style={{ color: 'var(--amber)', fontSize: '1.6rem', fontFamily: '"Playfair Display", serif' }}>Rút {selectedSpread.cardCount} lá bài</h3>
-            <p style={{ marginBottom: '30px', color: 'rgba(255,255,255,0.6)' }}>Bạn đã rút {drawnCards.length} / {selectedSpread.cardCount}</p>
+          <div className="fade-in text-center">
+            <h3 className="font-heading text-2xl text-gold-soft">Chọn {selectedSpread.cardCount} lá bài</h3>
+            <p className="mb-3 text-foreground/60">
+              Bạn đã chọn {drawnCards.length} / {selectedSpread.cardCount} — chạm vào một lá úp bất kỳ trong bộ bài đã tráo để bóc.
+            </p>
 
-            <div className="deck-area">
-              <button 
-                className="tarot-deck-stack" 
-                onClick={handleDrawCard} 
-                disabled={isRevealing}
-                style={{ cursor: isRevealing ? 'wait' : 'pointer', background: 'transparent', border: 'none', padding: 0 }}
+            {drawnCards.length === 0 && (
+              <Button
+                onClick={handleQuickDrawAll}
+                variant="outline"
+                size="sm"
+                className="mb-6 border-gold-soft/40 text-gold-soft hover:bg-gold-soft/10"
               >
-                <div className="tarot-card" style={{ top: '-4px', left: '-4px', zIndex: 10, boxShadow: '0 0 25px rgba(212,175,55,0.4)', transition: 'box-shadow 0.3s' }}>
-                  <div className="tarot-card-inner">
-                    <div className="tarot-card-back"></div>
-                  </div>
-                </div>
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="tarot-card" style={{ top: `${i * -2}px`, left: `${i * -2}px`, zIndex: i }}>
-                    <div className="tarot-card-inner">
-                      <div className="tarot-card-back"></div>
-                    </div>
-                  </div>
-                ))}
-              </button>
-              <p className="pulse" style={{ color: 'var(--amber)', fontSize: '0.9rem', marginTop: '20px' }}>
-                {isRevealing ? 'Bài đang được mở...' : 'Chạm vào bộ bài để rút'}
-              </p>
+                Rút nhanh tất cả (bỏ qua chọn thủ công)
+              </Button>
+            )}
+
+            {/* Full 78-card face-down pick grid. Deliberately flat/static (no 3D
+                transform-style, no per-cell flip) — the delicate .tarot-card 3D
+                flip mechanics only run on the small number of already-picked
+                cards below, never on all 78 cells at once, to keep this
+                responsive on low-end mobile. */}
+            <div
+              role="group"
+              aria-label="Bộ bài đã tráo, chạm để chọn lá"
+              className="mx-auto grid max-h-[46vh] max-w-[720px] grid-cols-[repeat(auto-fill,minmax(34px,1fr))] gap-1.5 overflow-y-auto rounded-2xl border border-border-gold/25 bg-black/20 p-3 motion-reduce:transition-none sm:grid-cols-[repeat(auto-fill,minmax(40px,1fr))]"
+            >
+              {deck.map((_, gridIndex) => {
+                const isPicked = pickedGridIndices.includes(gridIndex);
+                return (
+                  <button
+                    key={gridIndex}
+                    type="button"
+                    disabled={isPicked || isRevealing || drawnCards.length >= selectedSpread.cardCount}
+                    onClick={() => handlePickCard(gridIndex)}
+                    aria-label={isPicked ? 'Lá đã chọn' : 'Chọn lá này'}
+                    className={cn(
+                      'aspect-[2/3] rounded-[4px] border transition-all duration-150',
+                      isPicked
+                        ? 'scale-90 border-transparent bg-transparent opacity-0'
+                        : 'border-gold-soft/25 bg-gradient-to-br from-[#241a35] to-[#120c1c] hover:-translate-y-0.5 hover:border-gold-soft/70 hover:shadow-[0_0_10px_rgba(212,175,55,0.35)] active:translate-y-0',
+                    )}
+                  />
+                );
+              })}
             </div>
+
+            <p className="pulse mt-5 text-sm text-gold">
+              {isRevealing ? 'Bài đang được mở...' : 'Bộ bài vẫn được tráo ngẫu nhiên an toàn — bạn chỉ chọn vị trí muốn xem.'}
+            </p>
 
             <div className="drawn-cards-container">
               {drawnCards.map((dc, i) => (
@@ -396,8 +444,8 @@ const TarotSection: React.FC = () => {
                       <div className="tarot-card-front">
                         <div className="card-number">{dc.card.value}</div>
                         <div className={`card-artwork ${dc.isReversed ? 'reversed-art' : ''}`}>
-                          <img 
-                            src={dc.card.image} 
+                          <img
+                            src={dc.card.image}
                             alt={dc.card.name}
                             decoding="async"
                             onError={(e) => {
@@ -423,13 +471,13 @@ const TarotSection: React.FC = () => {
         )}
 
         {step === 'result' && selectedSpread && (
-          <div className="fade-in" style={{ maxWidth: '960px', margin: '0 auto', width: '100%' }}>
-            <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-              <h3 style={{ color: 'var(--amber)', fontSize: '2.2rem', fontFamily: '"Playfair Display", serif', marginBottom: '10px' }}>Thông Điệp Tarot</h3>
-              {question && <p style={{ fontStyle: 'italic', fontSize: '1.2rem', color: 'rgba(255,255,255,0.8)' }}>"{question}"</p>}
+          <div className="fade-in mx-auto w-full max-w-[960px]">
+            <div className="mb-10 text-center">
+              <h3 className="mb-2.5 font-heading text-4xl text-gold-soft">Thông Điệp Tarot</h3>
+              {question && <p className="text-xl italic text-foreground/80">"{question}"</p>}
             </div>
 
-            <div className="drawn-cards-container" style={{ margin: '0 auto 60px', justifyContent: 'center' }}>
+            <div className="drawn-cards-container mx-auto mb-[60px] justify-center">
               {drawnCards.map((dc, i) => {
                 const isRevealed = revealedIndices.includes(i);
                 return (
@@ -440,8 +488,8 @@ const TarotSection: React.FC = () => {
                         <div className="tarot-card-front">
                           <div className="card-number">{dc.card.value}</div>
                           <div className={`card-artwork ${dc.isReversed ? 'reversed-art' : ''}`}>
-                            <img 
-                              src={dc.card.image} 
+                            <img
+                              src={dc.card.image}
                               alt={dc.card.name}
                               decoding="async"
                               onError={(e) => {
@@ -461,7 +509,7 @@ const TarotSection: React.FC = () => {
                       <div className="glow-burst"></div>
                     </div>
                     <div className="drawn-card-position" style={{ opacity: isRevealed ? 1 : 0, transition: 'opacity 0.5s ease 0.4s' }}>{dc.positionName}</div>
-                    <div style={{ color: dc.isReversed ? '#f87171' : '#4ade80', fontSize: '0.85rem', marginTop: '8px', fontWeight: 'bold', letterSpacing: '1px', opacity: isRevealed ? 1 : 0, transition: 'opacity 0.5s ease 0.4s' }}>
+                    <div className={cn('mt-2 text-[0.85rem] font-bold tracking-wider transition-opacity duration-500 delay-[0.4s]', dc.isReversed ? 'text-red-400' : 'text-green-400')} style={{ opacity: isRevealed ? 1 : 0 }}>
                       {dc.isReversed ? 'NGƯỢC (REVERSED)' : 'XUÔI (UPRIGHT)'}
                     </div>
                   </div>
@@ -469,10 +517,10 @@ const TarotSection: React.FC = () => {
               })}
             </div>
 
-            <div className="panel glass-panel" style={{ background: 'rgba(15, 5, 25, 0.7)', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
-              <h3 style={{ borderBottom: '1px solid rgba(212, 175, 55, 0.2)', paddingBottom: '20px', marginBottom: '30px', color: 'var(--amber)', fontFamily: '"Playfair Display", serif', fontSize: '1.5rem', textAlign: 'center' }}>Giải nghĩa chi tiết</h3>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="panel glass-panel border border-gold-soft/20 bg-[rgba(15,5,25,0.7)]">
+              <h3 className="mb-7 border-b border-gold-soft/20 pb-5 text-center font-heading text-2xl text-gold-soft">Giải nghĩa chi tiết</h3>
+
+              <div className="flex flex-col gap-5">
                 {drawnCards.map((dc, i) => (
                   <div key={i} className="tarot-result-card glass-box">
                     <h4>{dc.positionName}: {dc.card.nameVi} ({dc.card.name})</h4>
@@ -486,29 +534,32 @@ const TarotSection: React.FC = () => {
 
               {/* ── Synthesis layer (shown after reveal completes) ── */}
               {synthesis && !isRevealing && (
-                <div style={{ marginBottom: '10px' }}>
+                <div className="mb-2.5">
                   <TarotSynthesisDisplay synthesis={synthesis} />
                 </div>
               )}
 
-              <div id="ai-tarot-reading" style={{ marginTop: '40px', padding: '30px', background: 'rgba(112, 66, 163, 0.05)', borderRadius: '16px', border: '1px solid rgba(212, 175, 55, 0.2)' }}>
+              <div id="ai-tarot-reading" className="mt-10 rounded-2xl border border-gold-soft/20 bg-[rgba(112,66,163,0.05)] p-7">
                 {aiState === 'idle' && (
-                  <div style={{ textAlign: 'center' }}>
-                    <h4 style={{ color: 'var(--amber)', fontSize: '1.4rem', marginBottom: '15px' }}>Luận Giải Toàn Diện</h4>
-                    <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '20px' }}>
+                  <div className="text-center">
+                    <h4 className="mb-4 font-heading text-2xl text-gold-soft">Luận Giải Toàn Diện</h4>
+                    <p className="mb-5 text-foreground/70">
                       AI sẽ kết nối ý nghĩa của tất cả các lá bài trong trải bài của bạn để đưa ra thông điệp tổng hợp.
                     </p>
-                    <br />
-                    <button onClick={handleGetAIReading} className="button primary-button" style={{ background: 'var(--amber)', color: '#000' }}>
+                    <Button
+                      onClick={handleGetAIReading}
+                      size="lg"
+                      className="h-12 rounded-2xl bg-gold px-6 text-base font-extrabold text-[#000] hover:bg-gold-soft"
+                    >
                       Luận Bài Bằng AI
-                    </button>
+                    </Button>
                   </div>
                 )}
 
                 {aiState === 'loading' && (
-                  <div style={{ textAlign: 'center', padding: '40px 0' }}>
-                    <div className="pulse-circle" style={{ margin: '0 auto 20px', width: '60px', height: '60px' }}></div>
-                    <p style={{ color: 'var(--amber)', fontSize: '1.2rem', fontWeight: 'bold' }}>Đang giải mã các biểu tượng...</p>
+                  <div className="py-10 text-center">
+                    <div className="pulse-circle mx-auto mb-5 h-[60px] w-[60px]"></div>
+                    <p className="text-xl font-bold text-gold">Đang giải mã các biểu tượng...</p>
                   </div>
                 )}
 
@@ -517,11 +568,18 @@ const TarotSection: React.FC = () => {
                 )}
               </div>
 
-              <div style={{ marginTop: '30px', textAlign: 'center', opacity: isRevealing ? 0.3 : 1, transition: 'opacity 0.5s', pointerEvents: isRevealing ? 'none' : 'auto' }}>
-
-                <button onClick={reset} disabled={isRevealing} className="button secondary-button" style={{ border: '1px solid var(--amber)', color: 'var(--amber)' }}>
+              <div
+                className="mt-7 text-center transition-opacity duration-500"
+                style={{ opacity: isRevealing ? 0.3 : 1, pointerEvents: isRevealing ? 'none' : 'auto' }}
+              >
+                <Button
+                  onClick={reset}
+                  disabled={isRevealing}
+                  variant="outline"
+                  className="border-gold text-gold hover:bg-gold/10"
+                >
                   Kết thúc nghi thức (Trải bài mới)
-                </button>
+                </Button>
               </div>
             </div>
 

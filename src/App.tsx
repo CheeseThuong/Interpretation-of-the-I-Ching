@@ -51,7 +51,7 @@ const App: React.FC = () => {
     <>
       <Header activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      <main style={{ minHeight: '80vh' }}>
+      <main className="min-h-[80vh]">
         {activeTab === 'home' && (
           <div className="fade-in">
             <HeroSection onCastingClick={handleCastingClick} onManualClick={handleManualClick} />

@@ -1,8 +1,13 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import readHexagram from './api/read-hexagram'
 import readTarot from './api/read-tarot'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 type DevApiRequest = {
   method?: string
@@ -73,6 +78,7 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [
       react(),
+      tailwindcss(),
       {
         name: 'local-api-middleware',
         configureServer(server) {
@@ -81,5 +87,10 @@ export default defineConfig(({ mode }) => {
         },
       },
     ],
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+      },
+    },
   }
 })

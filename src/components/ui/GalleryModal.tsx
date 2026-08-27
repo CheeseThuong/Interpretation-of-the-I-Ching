@@ -1,50 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
+import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import type { GalleryProject } from '../../types';
+import GalleryFallbackMotif from './GalleryFallbackMotif';
 
 interface GalleryModalProps {
   project: GalleryProject | null;
   onClose: () => void;
 }
 
-// ── Fallback Motifs ───────────────────────────────────────────────────────────
-const FallbackMotif: React.FC<{ title: string }> = ({ title }) => {
-  if (title === 'AI Oracle Reading') {
-    return (
-      <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1.2">
-        <circle cx="50" cy="50" r="40" strokeDasharray="2 4" opacity="0.2" />
-        <path d="M35 38H65M35 46H48M52 46H65M35 54H65M35 62H48M52 62H65" strokeWidth="2.5" />
-        <text x="50" y="55" fontSize="14" fill="currentColor" textAnchor="middle" opacity="0.4" style={{fontFamily: 'serif'}}>易</text>
-      </svg>
-    );
-  }
-  if (title === 'Manual Coin Casting') {
-    return (
-      <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1.2">
-        <circle cx="32" cy="42" r="10" />
-        <circle cx="50" cy="42" r="10" />
-        <circle cx="68" cy="42" r="10" />
-        <path d="M35 65H65M35 72H48M52 72H65M35 79H65" strokeWidth="2" opacity="0.5" />
-      </svg>
-    );
-  }
-  if (title === 'Decision Randomizer') {
-    return (
-      <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1.2">
-        <circle cx="50" cy="50" r="32" strokeDasharray="4 4" opacity="0.3" />
-        <path d="M50 18 L50 35 M50 65 L50 82 M18 50 L35 50 M65 50 L82 50" strokeWidth="1.5" />
-        <circle cx="50" cy="50" r="5" fill="currentColor" opacity="0.6" />
-        <path d="M35 35 L44 44 M56 56 L65 65" strokeWidth="1" strokeDasharray="3 3" />
-      </svg>
-    );
-  }
-  return (
-    <svg className="fallback-motif" viewBox="0 0 100 100" fill="none" stroke="currentColor" strokeWidth="1">
-      <circle cx="50" cy="50" r="30" strokeDasharray="4 4" opacity="0.2" />
-      <circle cx="50" cy="50" r="18" opacity="0.4" />
-      <path d="M42 50H58M50 42V58" strokeWidth="0.5" opacity="0.3" />
-    </svg>
-  );
-};
+const badgeClasses =
+  'inline-flex items-center rounded-full bg-accent px-2.5 py-1.5 text-[0.75rem] font-black text-gold-soft';
+
+// Shimmer placeholder shown behind the image while it loads (before/loaded state).
+const imageLoaderClasses = (loaded: boolean) =>
+  !loaded &&
+  "before:absolute before:inset-0 before:z-[1] before:animate-[shimmer_1.3s_linear_infinite] before:[background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,.05),rgba(255,255,255,0)),var(--bg-card-soft)] before:[background-size:220%_100%] before:content-['']";
 
 // ── Isolated image sub-component ──────────────────────────────────────────────
 interface ModalImageProps {
@@ -58,18 +29,23 @@ const ModalImage: React.FC<ModalImageProps> = ({ src, alt, title }) => {
   const [hasError, setHasError] = useState(false);
 
   return (
-    <div className={`image-loader modal-image-wrap${loaded || hasError ? ' loaded' : ''}`}>
+    <div
+      className={cn(
+        'relative flex h-[310px] items-center justify-center overflow-hidden bg-card-soft text-[var(--gold-muted)]',
+        imageLoaderClasses(loaded || hasError),
+      )}
+    >
       {!hasError ? (
         <img
-          id="modalImage"
           src={src}
           alt={alt}
           loading="lazy"
           onLoad={() => setLoaded(true)}
           onError={() => setHasError(true)}
+          className="relative z-[2] h-full w-full object-cover"
         />
       ) : (
-        <FallbackMotif title={title} />
+        <GalleryFallbackMotif title={title} />
       )}
     </div>
   );
@@ -77,42 +53,36 @@ const ModalImage: React.FC<ModalImageProps> = ({ src, alt, title }) => {
 
 // ── Main modal ────────────────────────────────────────────────────────────────
 const GalleryModal: React.FC<GalleryModalProps> = ({ project, onClose }) => {
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    if (project) document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
-  }, [project]);
-
-  // Close on Escape key
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [onClose]);
+  // Keep showing the last opened project's content while the dialog plays its
+  // close animation — `project` itself flips to null immediately on close.
+  // (Adjusting state during render, not in an effect — see
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes)
+  const [displayProject, setDisplayProject] = useState<GalleryProject | null>(project);
+  if (project && project !== displayProject) {
+    setDisplayProject(project);
+  }
 
   return (
-    <div
-      className={`modal-backdrop${project ? ' open' : ''}`}
-      id="modalBackdrop"
-      aria-hidden={!project}
-      onClick={(e) => { if ((e.target as HTMLElement).id === 'modalBackdrop') onClose(); }}
-    >
-      {project && (
-        <div className="modal" role="dialog" aria-modal aria-labelledby="modalTitle">
-          <button className="modal-close" id="modalClose" aria-label="Đóng modal" onClick={onClose}>
-            ×
-          </button>
-          {/* key=project.image ensures ModalImage remounts (and resets its state)
-              every time a different project is opened — no setState-in-effect needed */}
-          <ModalImage key={project.image} src={project.image} alt={project.alt} title={project.title} />
-          <div className="modal-content">
-            <span className="data-badge" id="modalTag">{project.tag}</span>
-            <h3 id="modalTitle">{project.title}</h3>
-            <p id="modalDescription">{project.description}</p>
-          </div>
-        </div>
-      )}
-    </div>
+    <Dialog open={!!project} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="gap-0 overflow-hidden rounded-[32px] border border-border bg-card p-0 text-foreground shadow-[0_32px_90px_rgba(0,0,0,0.6)] sm:max-w-[760px]">
+        {displayProject && (
+          <>
+            {/* key=image ensures ModalImage remounts (and resets its state)
+                every time a different project is opened — no setState-in-effect needed */}
+            <ModalImage key={displayProject.image} src={displayProject.image} alt={displayProject.alt} title={displayProject.title} />
+            <DialogHeader className="gap-0 p-[26px] text-left">
+              <span className={badgeClasses}>{displayProject.tag}</span>
+              <DialogTitle className="mt-[13px] mb-2.5 font-heading text-[2rem] leading-tight font-normal text-foreground">
+                {displayProject.title}
+              </DialogTitle>
+              <DialogDescription className="m-0 text-[1rem] leading-[1.75] text-[var(--text-secondary)]">
+                {displayProject.description}
+              </DialogDescription>
+            </DialogHeader>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 };
 
